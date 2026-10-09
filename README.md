@@ -1,15 +1,16 @@
 # Form AI Coach
 
-A personal trainer in your phone camera. Prop the phone up and start an exercise: the coach tracks
-your body in real time, counts reps, spots bad form ("knees caving in", "back rounding") and gives
-voice cues mid-set. Pose estimation runs **on-device**, so video never leaves the phone.
+A personal trainer in your phone camera. Prop the phone up, press **Start coaching** and move.
+There is no exercise to pick: the coach recognises what you're doing from your first rep, counts
+reps, spots bad form ("knees caving in", "back rounding") and talks you through it mid-set in a
+female voice. Pose estimation runs **on-device**, so video never leaves the phone.
 
 This repository is the website:
 
 | Page | What it is |
 | --- | --- |
-| `index.html` | Marketing landing page. The animated phone in the hero is a procedural squatter analysed live by the real coaching engine, not a video. |
-| `app.html` | The working coach. Camera, video-file and demo modes, live HUD, voice cues, set summaries and history. |
+| `index.html` | Marketing landing page. The animated phone in the hero is a procedural athlete switching between squats, presses and curls, recognised live by the real coaching engine. It isn't a video. |
+| `app.html` | The working coach. One Start button, then automatic exercise recognition. Camera, video-file and demo modes, live HUD, her voice cues, per-set summaries and history. |
 
 ## Run it locally
 
@@ -31,10 +32,43 @@ Any static host works (GitHub Pages, Netlify, Vercel, Cloudflare Pages, S3). For
 ```
 camera frame ─► MediaPipe Pose Landmarker (WASM/WebGL, on-device)
              ─► 33 landmarks (image + metric 3D "world" coordinates)
-             ─► FormCoach: joint angle → One Euro smoothing → rep state machine
-                           + per-exercise form checks (debounced over frames)
-             ─► HUD, skeleton overlay, voice cues (Web Speech API), set summary
+             ─► AutoCoach
+                  ├─ one FormCoach per exercise, all running every frame:
+                  │    joint angle → One Euro smoothing → rep state machine
+                  │    + per-exercise form checks (debounced over frames)
+                  └─ when any of them completes a rep, the frames of that rep are
+                     classified; the rep only counts if it really was that exercise
+             ─► HUD, skeleton overlay, her voice (Web Speech API), per-set summary
 ```
+
+### Automatic exercise recognition
+
+There is no exercise picker. `engine/classifier.js` reduces each frame to a few posture
+features and scores a span of frames (one rep) against each exercise:
+
+| Question | Feature |
+| --- | --- |
+| Lying or standing? | Torso **and** legs far from vertical (a deep, rounded squat tips the torso but keeps the legs under the hips) |
+| Legs or arms doing the work? | Range of knee angle plus hip drop vs range of elbow angle |
+| Squat or lunge? | Feet side by side vs split front-to-back while the knees are bent |
+| Curl or overhead press? | Hands stay below the shoulders vs travel above the head |
+
+Because every exercise's FormCoach is already counting, the first rep is never lost: it's
+counted the moment it's recognised. Lunges are never counted as squats (or vice versa) because
+each rep must classify as its own exercise. Accepted reps are grouped into **sets**. A new set
+starts when you switch exercise or rest for 30 seconds, and each set is saved to history.
+
+Mid-rep corrections come from the exercise being coached, and are only spoken once the rep so
+far looks like that exercise. So switching from squats to lunges doesn't trigger a squat cue.
+
+### Her voice
+
+The coach is female. Browsers don't expose a voice's gender, so `app/voice-select.js` infers
+it from voice names across Apple, Google, Microsoft and Android catalogues (e.g. Samantha,
+Karen, Zira, Aria, Google UK English Female, Android `sfg`). It picks the best female English
+voice, preferring on-device voices because they speak with no network delay. Users can choose another female voice in Settings.
+If a device has no female voice installed, she falls back to the closest voice at a higher
+pitch, and Settings says so.
 
 - **Angles are measured in 3D** using MediaPipe's world landmarks, so they hold up when the
   user is not perfectly side-on. Without world landmarks the engine falls back to
@@ -52,7 +86,7 @@ camera frame ─► MediaPipe Pose Landmarker (WASM/WebGL, on-device)
 - **Voice cues** are rate-limited per cue. A form correction can interrupt a rep count, never
   the reverse.
 
-### Exercises at launch
+### Exercises she recognises
 
 | Exercise | Primary angle | Form checks |
 | --- | --- | --- |
@@ -64,10 +98,15 @@ camera frame ─► MediaPipe Pose Landmarker (WASM/WebGL, on-device)
 
 ### Adding an exercise
 
-Add an entry to `assets/js/engine/exercises.js` with `rest`/`peak` angles, a `measure(points)`
-function that returns `{ value, arc, metrics }`, and a list of `checks`. Then add its id to
-`EXERCISE_ORDER`. The app UI, panel and summaries pick it up automatically. Add a test in
-`tests/exercises.test.js`.
+1. Add an entry to `assets/js/engine/exercises.js` with `name`/`plural`, `rest`/`peak`
+   angles, a `measure(points)` function that returns `{ value, arc, metrics }`, and a list of
+   `checks`. Add its id to `EXERCISE_ORDER`.
+2. Teach `classifySpan` in `assets/js/engine/classifier.js` to score it, using the frame
+   features or new ones.
+3. Add a synthetic poser in `assets/js/demo/synthetic.js` so the tests can check that it's
+   recognised from several camera angles and never confused with the other exercises.
+
+The app UI, panel and summaries pick it up automatically.
 
 ## Project layout
 
@@ -79,9 +118,11 @@ assets/
     filters.js    One Euro filter
     exercises.js  exercise definitions and form checks
     coach.js      FormCoach: rep state machine, fault debouncing, scoring, summary
-  js/demo/        procedural 33-point squatter used by the hero, demo mode and tests
+    classifier.js exercise recognition from posture features
+    auto-coach.js AutoCoach: runs every exercise's coach, accepts recognised reps, builds sets
+  js/demo/        procedural athlete (all five exercises, with faults) for the hero, demo and tests
   js/render/      canvas skeleton / fault / angle renderer
-  js/app/         camera + MediaPipe wrapper, voice, storage, app controller
+  js/app/         camera + MediaPipe wrapper, her voice + female-voice selection, storage, controller
   js/landing.js   landing page behaviour and live hero preview
 tests/            node:test suites
 scripts/serve.mjs zero-dependency static dev server

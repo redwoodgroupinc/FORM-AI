@@ -1,15 +1,26 @@
-// Spoken coaching cues via the Web Speech API (built into iOS, Android and desktop browsers).
-// Cues are short, rate-limited per cue, and a form correction may interrupt a rep count,
-// but never the other way round.
+// The coach's voice: spoken cues via the Web Speech API (built into iOS, Android and
+// desktop browsers). She is female: voice-select.js picks the best female voice on the
+// device. Cues are short and rate-limited per cue, and a form correction may interrupt a
+// rep count, never the other way round.
+
+import { pickCoachVoice } from './voice-select.js';
 
 export const PRIORITY = Object.freeze({ count: 1, info: 2, partial: 2, fault: 3 });
 
+// Without a female voice installed, a raised pitch keeps the closest voice nearer hers.
+const FEMALE_PITCH = 1.05;
+const FALLBACK_PITCH = 1.3;
+
 export class VoiceCoach {
-  constructor({ enabled = true, countReps = true } = {}) {
+  constructor({ enabled = true, countReps = true, voiceURI = 'auto' } = {}) {
     this.supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
     this.enabled = enabled;
     this.countReps = countReps;
+    this.voiceURI = voiceURI;
     this.voice = null;
+    this.female = false;
+    this.femaleVoices = [];
+    this.onvoiceschange = null;
     this.currentPriority = 0;
     this.lastSpokenAt = new Map();
     if (this.supported) {
@@ -20,11 +31,20 @@ export class VoiceCoach {
 
   pickVoice() {
     const voices = window.speechSynthesis.getVoices();
-    const english = voices.filter((v) => /^en[-_]/i.test(v.lang));
-    this.voice = english.find((v) => /natural|neural|enhanced|premium|google/i.test(v.name))
-      ?? english.find((v) => v.default)
-      ?? english[0]
-      ?? null;
+    const picked = pickCoachVoice(voices, {
+      preferredURI: this.voiceURI === 'auto' ? null : this.voiceURI,
+      lang: navigator.language || 'en-US',
+    });
+    this.voice = picked.voice;
+    this.female = picked.female;
+    this.femaleVoices = picked.femaleVoices;
+    this.onvoiceschange?.(this);
+  }
+
+  /** Choose a specific voice by voiceURI, or 'auto' for the best female voice. */
+  setVoice(voiceURI) {
+    this.voiceURI = voiceURI || 'auto';
+    if (this.supported) this.pickVoice();
   }
 
   /** iOS only allows speech after a user gesture, so prime it from the Start button. */
@@ -35,29 +55,47 @@ export class VoiceCoach {
     window.speechSynthesis.speak(primer);
   }
 
-  say(text, { key = text, priority = PRIORITY.info, cooldownMs = 4000 } = {}) {
-    if (!this.supported || !this.enabled || !text) return false;
+  /**
+   * Speak several cues from the same moment as one utterance, e.g. "Squats. One.".
+   * Items still on their cooldown are dropped.
+   * @param {Array<{text: string, key?: string, priority?: number, cooldownMs?: number}>} items
+   */
+  sayAll(items) {
+    if (!this.supported || !this.enabled) return false;
     const now = performance.now();
-    const last = this.lastSpokenAt.get(key);
-    if (last !== undefined && now - last < cooldownMs) return false;
+    const fresh = items.filter((item) => {
+      if (!item?.text) return false;
+      const last = this.lastSpokenAt.get(item.key ?? item.text);
+      return last === undefined || now - last >= (item.cooldownMs ?? 4000);
+    });
+    if (fresh.length === 0) return false;
+    const priority = Math.max(...fresh.map((item) => item.priority ?? PRIORITY.info));
 
     const synth = window.speechSynthesis;
     if (synth.speaking || synth.pending) {
       if (priority <= this.currentPriority) return false;
       synth.cancel();
     }
+    const text = fresh.map((item) => item.text.replace(/[.!?]?$/, '.')).join(' ');
     const utterance = new SpeechSynthesisUtterance(text);
-    if (this.voice) utterance.voice = this.voice;
-    utterance.rate = 1.08;
-    utterance.pitch = 1;
+    if (this.voice) {
+      utterance.voice = this.voice;
+      utterance.lang = this.voice.lang;
+    }
+    utterance.rate = 1.05;
+    utterance.pitch = this.female ? FEMALE_PITCH : FALLBACK_PITCH;
     const done = () => { if (this.currentUtterance === utterance) this.currentPriority = 0; };
     utterance.onend = done;
     utterance.onerror = done;
     this.currentUtterance = utterance;
     this.currentPriority = priority;
-    this.lastSpokenAt.set(key, now);
+    for (const item of fresh) this.lastSpokenAt.set(item.key ?? item.text, now);
     synth.speak(utterance);
     return true;
+  }
+
+  say(text, { key = text, priority = PRIORITY.info, cooldownMs = 4000 } = {}) {
+    return this.sayAll([{ text, key, priority, cooldownMs }]);
   }
 
   count(n) {

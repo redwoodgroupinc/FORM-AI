@@ -11,7 +11,7 @@ const failing = (exercise, metrics) => exercise.checks.filter((c) => c.test(metr
 test('every exercise is complete and its order list matches', () => {
   assert.deepEqual([...EXERCISE_ORDER].sort(), Object.keys(EXERCISES).sort());
   for (const ex of Object.values(EXERCISES)) {
-    for (const key of ['id', 'name', 'camera', 'frameHint', 'primaryLabel', 'partialCue']) {
+    for (const key of ['id', 'name', 'plural', 'camera', 'frameHint', 'primaryLabel', 'partialCue']) {
       assert.equal(typeof ex[key], 'string', `${ex.id}.${key}`);
     }
     assert.notEqual(ex.rest, ex.peak);

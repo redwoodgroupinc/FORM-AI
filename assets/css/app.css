@@ -15,6 +15,7 @@ body.app {
   z-index: 40;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
   min-height: 64px;
   padding: 0 var(--gutter);
@@ -22,45 +23,6 @@ body.app {
   background: rgba(7, 8, 10, 0.88);
   backdrop-filter: saturate(160%) blur(16px);
   -webkit-backdrop-filter: saturate(160%) blur(16px);
-}
-
-.exercise-tabs {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.exercise-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.tab {
-  flex: none;
-  padding: 8px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--text-2);
-  font-weight: 600;
-  font-size: 0.9rem;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
-
-.tab:hover {
-  color: var(--text);
-  border-color: var(--line-strong);
-}
-
-.tab[aria-selected='true'] {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--accent-ink);
 }
 
 .app-bar-actions {
@@ -161,10 +123,54 @@ body.app {
   gap: 12px;
 }
 
+.hud-id {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
 .status-pill {
   color: var(--text);
   font-size: 0.86rem;
-  max-width: 70%;
+  max-width: 100%;
+}
+
+.hud-exercise {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.4rem, 3.4vw, 2.2rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
+  animation: exercise-in 0.5s var(--ease);
+}
+
+.hud-exercise.is-detecting {
+  color: var(--text-2);
+  font-size: clamp(1.05rem, 2.4vw, 1.4rem);
+  animation: none;
+}
+
+.hud-exercise.is-detecting::after {
+  content: '';
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+  animation: dots 1.4s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+}
+
+@keyframes exercise-in {
+  from { opacity: 0; transform: translateY(6px); color: var(--accent); }
+  to { opacity: 1; transform: none; }
 }
 
 .status-pill span:last-child {
@@ -388,12 +394,22 @@ body.app {
 }
 
 .intro-checks li {
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
   color: var(--text-2);
-  font-size: 0.86rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+/* Informational, not choices: she recognises these on her own. */
+.intro-checks li::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 .intro-actions {
@@ -830,6 +846,52 @@ body.app {
   font-size: 3.4rem;
 }
 
+.summary-sets {
+  margin: 20px 0 0;
+  padding: 4px 14px;
+  list-style: none;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.summary-sets[hidden] {
+  display: none;
+}
+
+.summary-sets li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.summary-sets li:first-child {
+  border-top: 0;
+}
+
+.summary-sets .h-name {
+  font-weight: 600;
+}
+
+.summary-sets .h-date {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.summary-sets .h-stats {
+  color: var(--text-2);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.summary-sets .h-score {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -955,6 +1017,47 @@ body.app {
   outline-offset: 3px;
 }
 
+.select-row {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.select-row strong {
+  display: block;
+  font-size: 0.98rem;
+}
+
+.select-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.select-wrap {
+  display: flex;
+  gap: 8px;
+}
+
+.select-wrap select {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+}
+
+.select-wrap .btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 .segmented {
   margin: 0;
   padding: 14px 0 0;
@@ -1015,32 +1118,13 @@ body.app {
 }
 
 @media (max-width: 760px) {
-  .app-bar {
-    flex-wrap: wrap;
-    gap: 8px 12px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-
-  .app-bar .brand {
-    flex: 1;
-  }
-
-  .exercise-tabs {
-    order: 3;
-    flex-basis: 100%;
-    justify-content: flex-start;
-    margin-inline: calc(var(--gutter) * -1);
-    padding-inline: var(--gutter);
-  }
-
   .app-main {
     padding: 12px 12px 24px;
     gap: 16px;
   }
 
   .stage {
-    height: calc(100svh - 118px - 24px);
+    height: calc(100svh - 64px - 24px);
     min-height: 480px;
     border-radius: var(--radius-lg);
   }

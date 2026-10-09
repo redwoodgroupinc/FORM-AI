@@ -139,6 +139,8 @@ export class FormCoach {
           type: 'partial',
           cue: this.exercise.partialCue,
           maxProgress: rep.maxProgress,
+          startedAt: rep.startedAt,
+          endedAt: timeMs,
         });
       }
       this.state = 'rest';
@@ -161,6 +163,8 @@ export class FormCoach {
     this.reps += 1;
     const record = {
       index: this.reps,
+      startedAt: rep.startedAt,
+      endedAt: timeMs,
       durationMs,
       depth: rep.maxProgress,
       faults: [...rep.faults],

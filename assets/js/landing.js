@@ -1,9 +1,10 @@
 // Landing page: navigation, scroll reveals and the live hero preview.
-// The hero phone is not a video. A procedural squatter is analysed frame by frame by the
-// same FormCoach engine the app uses, so the rep count and cues on screen are real output.
+// The hero phone is not a video. A procedural athlete switches between squats, overhead
+// presses and curls, and the same AutoCoach engine the app uses recognises each exercise,
+// counts reps and flags faults, so everything on that screen is real output.
 
-import { FormCoach, EXERCISES } from './engine/index.js';
-import { demoFrame } from './demo/synthetic.js';
+import { AutoCoach } from './engine/index.js';
+import { programFrame, programDuration, HERO_PROGRAM } from './demo/synthetic.js';
 import { drawSkeleton, faultJointsFor } from './render/skeleton.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -66,14 +67,16 @@ function setupHero() {
   const cueEl = document.getElementById('hero-cue');
   const cueText = document.getElementById('hero-cue-text');
   const voiceEl = document.getElementById('hero-voice');
+  const exerciseEl = document.getElementById('hero-exercise');
 
-  const RESET_AFTER_REPS = 12;
   const MAX_FRAME_MS = 50;
   const FRAMING = { frameScale: 0.32, floor: 0.84 };
-  let coach = new FormCoach(EXERCISES.squat);
+  const LOOP_MS = programDuration(HERO_PROGRAM);
+  const coach = new AutoCoach();
+  const INTRO_LINE = voiceEl.textContent;
+  let loopIndex = 0;
   // Animation clock: advances with frames but never jumps, even after jank or a pause.
   let clock = 0;
-  let setStartedAt = 0;
   let lastFrameAt = null;
   let cueHideAt = 0;
   let running = false;
@@ -94,13 +97,27 @@ function setupHero() {
   }
 
   function step(now) {
-    const elapsed = now - setStartedAt;
+    // Start every loop of the program as a fresh workout.
+    const currentLoop = Math.floor(now / LOOP_MS);
+    if (currentLoop !== loopIndex) {
+      loopIndex = currentLoop;
+      coach.reset();
+      repsEl.textContent = '0';
+      exerciseEl.textContent = 'Detecting…';
+      voiceEl.textContent = INTRO_LINE;
+    }
+    const elapsed = now % LOOP_MS;
     const aspect = canvas.width / canvas.height;
-    const frame = demoFrame(elapsed, { aspect, ...FRAMING });
+    const frame = programFrame(elapsed, HERO_PROGRAM, { aspect, ...FRAMING });
     const result = coach.update(frame.pose, now);
 
+    const exerciseEvent = result.events.find((e) => e.type === 'exercise');
     for (const event of result.events) {
-      if (event.type === 'fault') {
+      if (event.type === 'exercise') {
+        exerciseEl.textContent = `${event.exercise.name} · Tracking`;
+        showCue(`${event.exercise.name} detected`, 'good', now, 1300);
+        voiceEl.textContent = `“${event.exercise.plural}. One.”`;
+      } else if (event.type === 'fault') {
         showCue(event.check.cue, 'bad', now, 1700);
         voiceEl.textContent = `“${event.check.cue}”`;
       } else if (event.type === 'rep') {
@@ -108,12 +125,13 @@ function setupHero() {
         repsEl.classList.remove('bump');
         void repsEl.offsetWidth; // restart the animation
         repsEl.classList.add('bump');
-        if (event.rep.faults.length === 0) {
+        if (event.rep.faults.length === 0 && !exerciseEvent) {
           voiceEl.textContent = `“${event.count}.”`;
           if (now > cueHideAt) showCue('Good rep', 'good', now, 800);
         }
       }
     }
+    if (result.exerciseId && result.reps === 0 && repsEl.textContent !== '0') repsEl.textContent = '0';
     if (now > cueHideAt) cueEl.classList.remove('is-visible');
 
     scoreEl.textContent = result.formScore === null ? '--' : String(result.formScore);
@@ -129,11 +147,6 @@ function setupHero() {
       time: now,
     });
 
-    if (coach.reps >= RESET_AFTER_REPS && result.state === 'rest') {
-      coach = new FormCoach(EXERCISES.squat);
-      setStartedAt = now;
-      repsEl.textContent = '0';
-    }
   }
 
   function loop(timestamp) {
@@ -160,7 +173,7 @@ function setupHero() {
   window.addEventListener('resize', resize);
 
   if (reducedMotion) {
-    // Static frame: bottom of the third rep, where the knees cave in.
+    // Static frame: bottom of the third squat, where the knees cave in.
     const target = 2600 * 2 + 2600 * 0.55;
     for (let t = 0; t <= target; t += 33) step(t);
     cueHideAt = Infinity;

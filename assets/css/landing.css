@@ -744,12 +744,6 @@
   transition: border-color 0.3s, transform 0.3s var(--ease), box-shadow 0.3s;
 }
 
-a.exercise:hover {
-  border-color: var(--accent-line);
-  transform: translateY(-3px);
-  box-shadow: 0 20px 40px -24px rgba(200, 255, 61, 0.45);
-}
-
 .exercise-top {
   display: flex;
   align-items: center;
@@ -782,27 +776,6 @@ a.exercise:hover {
   padding: 8px 0;
   border-top: 1px solid var(--line);
   font-size: 0.95rem;
-}
-
-.exercise-go {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: auto;
-  padding-top: 18px;
-  color: var(--accent);
-  font-weight: 600;
-  font-size: 0.94rem;
-}
-
-.exercise-go svg {
-  width: 16px;
-  height: 16px;
-  transition: transform 0.25s var(--ease);
-}
-
-a.exercise:hover .exercise-go svg {
-  transform: translateX(4px);
 }
 
 .exercise-soon {

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Live Coach · Form AI Coach</title>
-  <meta name="description" content="Real-time rep counting, form checks and voice cues from your camera. Pose estimation runs on your device, so video never leaves it.">
+  <meta name="description" content="Press start and move. Your AI coach recognises the exercise on her own, counts reps, checks your form and talks you through it. Pose estimation runs on your device, so video never leaves it.">
   <meta name="theme-color" content="#07080a">
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,7 +38,6 @@
       <img class="brand-mark" src="assets/img/favicon.svg" alt="" width="32" height="32">
       <span class="brand-name">Form <span>AI</span> Coach</span>
     </a>
-    <div class="exercise-tabs" id="exercise-tabs" role="tablist" aria-label="Exercise"></div>
     <div class="app-bar-actions">
       <button class="btn btn-ghost btn-icon" id="voice-toggle" type="button" aria-pressed="true" aria-label="Voice cues on">
         <svg aria-hidden="true"><use href="#i-voice"/></svg>
@@ -57,8 +56,11 @@
 
         <div class="hud" id="hud">
           <div class="hud-top">
-            <span class="pill status-pill" id="status-pill"><span class="dot is-idle" id="status-dot"></span><span id="status-text">Ready</span></span>
-            <span class="hud-angle" id="angle-readout"><small id="angle-label">Knee angle</small><b id="angle-value">--</b></span>
+            <div class="hud-id">
+              <span class="pill status-pill" id="status-pill"><span class="dot is-idle" id="status-dot"></span><span id="status-text">Ready</span></span>
+              <span class="hud-exercise is-detecting" id="hud-exercise" aria-live="polite">Detecting exercise</span>
+            </div>
+            <span class="hud-angle" id="angle-readout"><small id="angle-label">Joint angle</small><b id="angle-value">--</b></span>
           </div>
           <div class="cue" id="cue" role="status" aria-live="assertive">
             <svg aria-hidden="true"><use href="#i-alert"/></svg>
@@ -75,25 +77,29 @@
             </div>
           </div>
           <div class="stage-controls">
-            <button class="btn btn-icon ctrl" id="btn-reset" type="button" aria-label="Reset reps"><svg aria-hidden="true"><use href="#i-reset"/></svg></button>
+            <button class="btn btn-icon ctrl" id="btn-reset" type="button" aria-label="Start over"><svg aria-hidden="true"><use href="#i-reset"/></svg></button>
             <button class="btn btn-icon ctrl" id="btn-pause" type="button" aria-label="Pause"><svg aria-hidden="true"><use href="#i-pause"/></svg></button>
-            <button class="btn btn-primary ctrl-end" id="btn-end" type="button"><svg aria-hidden="true"><use href="#i-stop"/></svg> End set</button>
+            <button class="btn btn-primary ctrl-end" id="btn-end" type="button"><svg aria-hidden="true"><use href="#i-stop"/></svg> Finish</button>
             <button class="btn btn-icon ctrl" id="btn-flip" type="button" aria-label="Switch camera"><svg aria-hidden="true"><use href="#i-flip"/></svg></button>
           </div>
         </div>
 
         <div class="stage-intro" id="intro">
           <div class="intro-card">
-            <span class="eyebrow" id="intro-eyebrow">Squat</span>
-            <h1>Set up your camera</h1>
-            <p class="intro-camera" id="intro-camera"></p>
-            <ul class="intro-checks" id="intro-checks"></ul>
+            <span class="eyebrow">Hands-free coaching</span>
+            <h1>Press start and move</h1>
+            <p class="intro-camera">
+              Prop your phone 2–3 m away at hip height so your whole body is in frame. Then start
+              any of these exercises. Your coach recognises it from your first rep, counts every rep
+              and tells you how your form looks.
+            </p>
+            <ul class="intro-checks" id="intro-exercises" aria-label="Exercises she recognises"></ul>
             <div class="intro-actions">
               <button class="btn btn-primary btn-lg" id="start-camera" type="button">
-                <svg aria-hidden="true"><use href="#i-camera"/></svg> Start camera
+                <svg aria-hidden="true"><use href="#i-camera"/></svg> Start coaching
               </button>
               <button class="btn btn-lg" id="start-demo" type="button">
-                <svg aria-hidden="true"><use href="#i-play"/></svg> Watch a demo set
+                <svg aria-hidden="true"><use href="#i-play"/></svg> Watch a demo
               </button>
             </div>
             <label class="intro-file">
@@ -113,11 +119,11 @@
       </div>
     </section>
 
-    <aside class="panel" aria-label="Set details">
+    <aside class="panel" aria-label="Workout details">
       <section class="card">
         <div class="card-head">
           <h2>This set</h2>
-          <span class="card-sub" id="set-exercise">Squat</span>
+          <span class="card-sub" id="set-exercise">Waiting for your first rep</span>
         </div>
         <div class="set-stats">
           <div class="set-stat"><strong id="stat-score">--</strong><span>Form score</span></div>
@@ -132,9 +138,16 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>What we check</h2>
+          <h2 id="check-title">What she recognises</h2>
         </div>
         <ul class="check-list" id="check-list"></ul>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>This workout</h2>
+        </div>
+        <ul class="history" id="workout-sets"></ul>
       </section>
 
       <section class="card">
@@ -151,8 +164,8 @@
   <dialog class="dialog" id="summary-dialog" aria-labelledby="summary-title">
     <form method="dialog" class="dialog-body">
       <button class="btn btn-ghost btn-icon dialog-close" value="close" aria-label="Close"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
-      <span class="eyebrow" id="summary-exercise">Squat</span>
-      <h2 id="summary-title">Set complete</h2>
+      <span class="eyebrow" id="summary-eyebrow">Workout</span>
+      <h2 id="summary-title">Workout complete</h2>
       <div class="summary-hero">
         <div class="score-ring" id="score-ring">
           <svg viewBox="0 0 120 120" aria-hidden="true">
@@ -163,15 +176,16 @@
         </div>
         <div class="summary-reps"><strong id="summary-reps">0</strong><span>reps</span></div>
       </div>
+      <ul class="summary-sets" id="summary-sets" aria-label="Sets"></ul>
       <div class="summary-grid">
         <div><strong id="summary-clean">0</strong><span>Clean reps</span></div>
         <div><strong id="summary-partial">0</strong><span>Partial reps</span></div>
         <div><strong id="summary-tempo">--</strong><span>Avg rep time</span></div>
-        <div><strong id="summary-duration">--</strong><span>Set duration</span></div>
+        <div><strong id="summary-duration">--</strong><span>Duration</span></div>
       </div>
       <div class="summary-focus" id="summary-focus"></div>
       <div class="dialog-actions">
-        <button class="btn btn-primary btn-lg" value="again">Start next set</button>
+        <button class="btn btn-primary btn-lg" value="again">Keep training</button>
         <button class="btn btn-lg" value="close">Done</button>
       </div>
     </form>
@@ -182,12 +196,19 @@
       <button class="btn btn-ghost btn-icon dialog-close" value="close" aria-label="Close"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
       <h2 id="settings-title">Settings</h2>
       <div class="settings">
-        <label class="toggle"><span><strong>Voice cues</strong><small>Speak form corrections mid-set</small></span><input type="checkbox" id="set-voice" checked><i aria-hidden="true"></i></label>
+        <label class="toggle"><span><strong>Voice cues</strong><small>Your coach speaks corrections mid-set</small></span><input type="checkbox" id="set-voice" checked><i aria-hidden="true"></i></label>
+        <div class="select-row">
+          <label for="set-voice-name"><strong>Coach voice</strong><small id="voice-note">Female voices on this device</small></label>
+          <div class="select-wrap">
+            <select id="set-voice-name"></select>
+            <button class="btn btn-sm" id="voice-preview" type="button"><svg aria-hidden="true"><use href="#i-voice"/></svg> Preview</button>
+          </div>
+        </div>
         <label class="toggle"><span><strong>Count reps aloud</strong><small>Say each rep number</small></span><input type="checkbox" id="set-count" checked><i aria-hidden="true"></i></label>
         <label class="toggle"><span><strong>Vibrate on form flags</strong><small>Android only</small></span><input type="checkbox" id="set-haptics" checked><i aria-hidden="true"></i></label>
         <label class="toggle"><span><strong>Show joint angle</strong><small>Draw the measured angle on screen</small></span><input type="checkbox" id="set-angle" checked><i aria-hidden="true"></i></label>
         <fieldset class="segmented">
-          <legend><strong>Tracking model</strong><small>Accurate is better for push-ups and lunges, Fast suits older phones</small></legend>
+          <legend><strong>Tracking model</strong><small>Accurate tracks lying-down and side-on movements better. Fast suits older phones.</small></legend>
           <label><input type="radio" name="model" value="lite" checked><span>Fast</span></label>
           <label><input type="radio" name="model" value="full"><span>Accurate</span></label>
         </fieldset>

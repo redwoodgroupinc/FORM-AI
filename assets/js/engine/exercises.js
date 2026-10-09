@@ -52,6 +52,7 @@ export const TEMPO_CHECK = Object.freeze({
 const squat = {
   id: 'squat',
   name: 'Squat',
+  plural: 'Squats',
   tagline: 'Depth, knee tracking and chest position',
   camera: 'Prop your phone at hip height, 2–3 m away. Stand at a slight angle so both knees are visible.',
   frameHint: 'Step back so your hips, knees and ankles are in frame',
@@ -108,6 +109,7 @@ const squat = {
 const pushup = {
   id: 'pushup',
   name: 'Push-up',
+  plural: 'Push-ups',
   tagline: 'Body line, depth and hip position',
   camera: 'Place your phone on the floor 1.5–2 m to your side so your whole body is visible side-on.',
   frameHint: 'Turn side-on so your shoulder, hip and ankle are in frame',
@@ -175,6 +177,7 @@ const pushup = {
 const curl = {
   id: 'curl',
   name: 'Bicep curl',
+  plural: 'Bicep curls',
   tagline: 'Elbow position, swinging and range of motion',
   camera: 'Stand facing the camera or slightly side-on, 2 m away, with your upper body and hips in frame.',
   frameHint: 'Make sure your shoulders, elbows and wrists are in frame',
@@ -225,6 +228,7 @@ const curl = {
 const lunge = {
   id: 'lunge',
   name: 'Lunge',
+  plural: 'Lunges',
   tagline: 'Depth, balance and upright torso',
   camera: 'Stand side-on to the camera, 2–3 m away, with room to step forward.',
   frameHint: 'Step back so both legs are in frame',
@@ -262,6 +266,7 @@ const lunge = {
 const press = {
   id: 'press',
   name: 'Overhead press',
+  plural: 'Overhead presses',
   tagline: 'Lockout, symmetry and lower-back arch',
   camera: 'Stand facing the camera, 2 m away, with your hands and hips in frame.',
   frameHint: 'Step back so your hands are visible above your head',

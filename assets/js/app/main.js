@@ -1,7 +1,8 @@
-// Live coach controller: camera / video file / demo source → pose model → FormCoach → HUD + voice.
+// Live coach controller: camera / video file / demo → pose model → AutoCoach → HUD + voice.
+// There is no exercise picker: the AutoCoach recognises what the athlete is doing.
 
-import { FormCoach, EXERCISES, EXERCISE_ORDER, TEMPO_CHECK } from '../engine/index.js';
-import { demoFrame } from '../demo/synthetic.js';
+import { AutoCoach, EXERCISES, EXERCISE_ORDER, TEMPO_CHECK } from '../engine/index.js';
+import { programFrame, DEMO_PROGRAM } from '../demo/synthetic.js';
 import { drawSkeleton, faultJointsFor } from '../render/skeleton.js';
 import { createPoseDetector } from './pose-detector.js';
 import { VoiceCoach, PRIORITY } from './voice.js';
@@ -9,11 +10,10 @@ import { storage } from './storage.js';
 
 const SETTINGS_KEY = 'formai.settings.v1';
 const HISTORY_KEY = 'formai.history.v1';
-const EXERCISE_KEY = 'formai.exercise.v1';
-const HISTORY_LIMIT = 20;
+const HISTORY_LIMIT = 30;
 const LOST_TRACKING_MS = 1500;
 const RING_CIRCUMFERENCE = 2 * Math.PI * 52;
-// Keeps the demo squatter clear of the rep counter and controls at the bottom of the stage.
+// Keeps the demo athlete clear of the rep counter and controls at the bottom of the stage.
 const DEMO_FRAMING = { frameScale: 0.36, floor: 0.8 };
 
 const $ = (id) => document.getElementById(id);
@@ -21,16 +21,14 @@ const els = {
   stage: $('stage'),
   video: $('video'),
   canvas: $('overlay'),
-  tabs: $('exercise-tabs'),
   intro: $('intro'),
-  introEyebrow: $('intro-eyebrow'),
-  introCamera: $('intro-camera'),
-  introChecks: $('intro-checks'),
+  introExercises: $('intro-exercises'),
   introError: $('intro-error'),
   loading: $('loading'),
   loadingText: $('loading-text'),
   statusDot: $('status-dot'),
   statusText: $('status-text'),
+  hudExercise: $('hud-exercise'),
   angleLabel: $('angle-label'),
   angleValue: $('angle-value'),
   cue: $('cue'),
@@ -43,22 +41,27 @@ const els = {
   statClean: $('stat-clean'),
   statPartial: $('stat-partial'),
   flagList: $('flag-list'),
+  checkTitle: $('check-title'),
   checkList: $('check-list'),
+  workoutSets: $('workout-sets'),
   history: $('history'),
   voiceToggle: $('voice-toggle'),
+  voiceSelect: $('set-voice-name'),
+  voiceNote: $('voice-note'),
   summaryDialog: $('summary-dialog'),
   settingsDialog: $('settings-dialog'),
 };
 const ctx = els.canvas.getContext('2d');
 
-const DEFAULT_SETTINGS = { voice: true, countReps: true, haptics: true, showAngle: true, model: 'lite' };
+const DEFAULT_SETTINGS = {
+  voice: true, countReps: true, haptics: true, showAngle: true, model: 'lite', voiceURI: 'auto',
+};
 const settings = { ...DEFAULT_SETTINGS, ...storage.get(SETTINGS_KEY, {}) };
-const voice = new VoiceCoach({ enabled: settings.voice, countReps: settings.countReps });
-
+const voice = new VoiceCoach({
+  enabled: settings.voice, countReps: settings.countReps, voiceURI: settings.voiceURI,
+});
+const coach = new AutoCoach();
 const params = new URLSearchParams(window.location.search);
-let exerciseId = [params.get('exercise'), storage.get(EXERCISE_KEY)]
-  .find((id) => id && EXERCISES[id]) ?? 'squat';
-let coach = new FormCoach(EXERCISES[exerciseId]);
 
 const session = {
   mode: 'idle', // idle | camera | file | demo
@@ -79,92 +82,48 @@ const session = {
   wakeLock: null,
   fileUrl: null,
   lastFile: null,
-  lastMode: null,
+  shownExerciseId: undefined,
 };
 
-const exercise = () => EXERCISES[exerciseId];
+const plural = (n, exercise) => `${n} ${(n === 1 ? exercise.name : exercise.plural).toLowerCase()}`;
+
+function checkFor(exerciseId, id) {
+  if (id === TEMPO_CHECK.id) return TEMPO_CHECK;
+  return EXERCISES[exerciseId]?.checks.find((c) => c.id === id);
+}
 
 // ---------------------------------------------------------------------------
-// Exercise selection
+// Static panels
 
-function renderTabs() {
-  els.tabs.replaceChildren(...EXERCISE_ORDER.map((id) => {
-    const tab = document.createElement('button');
-    tab.type = 'button';
-    tab.className = 'tab';
-    tab.setAttribute('role', 'tab');
-    tab.dataset.id = id;
-    tab.textContent = EXERCISES[id].name;
-    tab.addEventListener('click', () => selectExercise(id));
-    return tab;
-  }));
-  syncTabs();
+function listItem(title, detail) {
+  const li = document.createElement('li');
+  const strong = document.createElement('strong');
+  strong.textContent = title;
+  const span = document.createElement('span');
+  span.textContent = detail;
+  li.append(strong, span);
+  return li;
 }
 
-function syncTabs() {
-  for (const tab of els.tabs.children) {
-    const selected = tab.dataset.id === exerciseId;
-    tab.setAttribute('aria-selected', String(selected));
-    tab.tabIndex = selected ? 0 : -1;
+function renderIntro() {
+  els.introExercises.replaceChildren(...EXERCISE_ORDER.map((id) => {
+    const li = document.createElement('li');
+    li.textContent = EXERCISES[id].name;
+    return li;
+  }));
+}
+
+/** Panel card: what she checks for the current exercise, or what she can recognise. */
+function renderChecks() {
+  const exercise = coach.exercise;
+  if (!exercise) {
+    els.checkTitle.textContent = 'What she recognises';
+    els.checkList.replaceChildren(...EXERCISE_ORDER.map((id) => listItem(EXERCISES[id].name, EXERCISES[id].camera)));
+    return;
   }
-}
-
-els.tabs.addEventListener('keydown', (event) => {
-  if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
-  const index = EXERCISE_ORDER.indexOf(exerciseId);
-  const next = (index + (event.key === 'ArrowRight' ? 1 : -1) + EXERCISE_ORDER.length) % EXERCISE_ORDER.length;
-  selectExercise(EXERCISE_ORDER[next]);
-  els.tabs.children[next].focus();
-});
-
-function selectExercise(id) {
-  if (id === exerciseId || !EXERCISES[id]) return;
-  exerciseId = id;
-  storage.set(EXERCISE_KEY, id);
-  const url = new URL(window.location.href);
-  url.searchParams.set('exercise', id);
-  url.searchParams.delete('demo');
-  window.history.replaceState(null, '', url);
-
-  // The demo set is a squat, so switching away from it ends the demo.
-  if (session.mode === 'demo' && session.running) stopSession();
-
-  coach = new FormCoach(exercise());
-  session.cleanStreak = 0;
-  syncTabs();
-  renderExerciseInfo();
-  resetSetUI();
-  if (session.running) showCue(`Switched to ${exercise().name}`, 'good', performance.now(), 1400);
-}
-
-function renderExerciseInfo() {
-  const ex = exercise();
-  els.introEyebrow.textContent = ex.name;
-  els.introCamera.textContent = ex.camera;
-  els.setExercise.textContent = ex.name;
-  els.angleLabel.textContent = ex.primaryLabel;
-
-  const chips = ['Rep counting', 'Full range of motion', ...ex.checks.map((c) => c.label), 'Tempo'];
-  els.introChecks.replaceChildren(...chips.map((text) => {
-    const li = document.createElement('li');
-    li.textContent = text;
-    return li;
-  }));
-
-  const checks = [
-    ...ex.checks,
-    { label: 'Partial reps', cue: ex.partialCue },
-    TEMPO_CHECK,
-  ];
-  els.checkList.replaceChildren(...checks.map((check) => {
-    const li = document.createElement('li');
-    const strong = document.createElement('strong');
-    strong.textContent = check.label;
-    const span = document.createElement('span');
-    span.textContent = `“${check.cue}”`;
-    li.append(strong, span);
-    return li;
-  }));
+  els.checkTitle.textContent = `What she checks: ${exercise.name.toLowerCase()}`;
+  const checks = [...exercise.checks, { label: 'Partial reps', cue: exercise.partialCue }, TEMPO_CHECK];
+  els.checkList.replaceChildren(...checks.map((check) => listItem(check.label, `“${check.cue}”`)));
 }
 
 // ---------------------------------------------------------------------------
@@ -192,10 +151,10 @@ function hideLoading() {
 function describeError(error) {
   const name = error?.name ?? '';
   if (name === 'NotAllowedError' || name === 'SecurityError') {
-    return 'Camera access was blocked. Allow camera access for this site in your browser settings, or watch the demo set instead.';
+    return 'Camera access was blocked. Allow camera access for this site in your browser settings, or watch the demo instead.';
   }
   if (name === 'NotFoundError' || name === 'OverconstrainedError') {
-    return 'No camera was found. Connect a camera, analyse a video file, or watch the demo set.';
+    return 'No camera was found. Connect a camera, analyse a video file, or watch the demo.';
   }
   if (name === 'NotReadableError' || name === 'AbortError') {
     return 'Your camera is busy in another app. Close it there and try again.';
@@ -273,7 +232,6 @@ async function startCamera() {
 function startDemo() {
   hideError();
   voice.unlock();
-  if (exerciseId !== 'squat') selectExercise('squat');
   stopStream();
   session.mirrored = false;
   beginSession('demo');
@@ -309,7 +267,6 @@ async function startFile(file) {
 
 function beginSession(mode) {
   session.mode = mode;
-  session.lastMode = mode;
   session.running = true;
   session.paused = false;
   session.demoClock = 0;
@@ -326,10 +283,12 @@ function beginSession(mode) {
   setPauseButton(false);
 
   coach.reset();
-  resetSetUI();
+  resetWorkoutUI();
   sizeCanvas();
   requestWakeLock();
-  voice.say(mode === 'demo' ? 'Demo set. Watch the cues.' : 'Ready. Start when you are.', {
+  voice.say(mode === 'demo'
+    ? "Here's a demo. Watch how I recognise each exercise."
+    : "I'm watching. Start any exercise when you're ready.", {
     key: 'start', priority: PRIORITY.info, cooldownMs: 0,
   });
 
@@ -360,13 +319,14 @@ function stopSession() {
   hideCue();
 }
 
-function endSet() {
+function finishWorkout() {
   if (!session.running) return;
+  for (const event of coach.finish()) saveHistory(event.set);
   const summary = coach.summary();
   const mode = session.mode;
   stopSession();
-  if (summary.reps > 0 || summary.partialReps > 0) saveHistory(summary);
-  voice.say(summary.reps > 0 ? `Set complete. ${summary.reps} reps.` : 'Set ended.', {
+  renderWorkoutSets();
+  voice.say(summary.reps > 0 ? `Workout complete. ${summary.reps} reps. Great work.` : 'Workout ended.', {
     key: 'end', priority: PRIORITY.fault, cooldownMs: 0,
   });
   showSummary(summary, mode);
@@ -454,12 +414,13 @@ function tick(now) {
 
   let pose;
   let time = now;
+  const aspect = els.canvas.width / els.canvas.height;
   if (session.mode === 'demo') {
     // The demo runs on its own clock so a stalled frame never skips part of a rep.
     session.demoClock += session.lastTickAt === null ? 0 : Math.min(now - session.lastTickAt, 50);
     session.lastTickAt = now;
     time = session.demoClock;
-    pose = demoFrame(time, { aspect: els.canvas.width / els.canvas.height, ...DEMO_FRAMING }).pose;
+    pose = programFrame(time, DEMO_PROGRAM, { aspect, ...DEMO_FRAMING }).pose;
   } else {
     const video = els.video;
     if (video.readyState < 2 || video.currentTime === session.lastVideoTime) return;
@@ -505,45 +466,79 @@ function countFps(now) {
   }
 }
 
+/**
+ * Turn one frame's coaching events into on-screen cues and a single spoken line, in the
+ * order a coach would say them: the exercise, then corrections, then the count.
+ */
 function handleEvents(events, now) {
+  if (events.length === 0) return;
+  const speech = [];
   const faultThisFrame = events.some((e) => e.type === 'fault');
+  const newExercise = events.find((e) => e.type === 'exercise');
+
   for (const event of events) {
-    if (event.type === 'fault') {
+    if (event.type === 'set') {
+      saveHistory(event.set);
+      renderWorkoutSets();
+      if (event.reason === 'rest') {
+        const exercise = EXERCISES[event.set.exerciseId];
+        showCue(`Set saved: ${plural(event.set.reps, exercise)}`, 'good', now, 2200);
+        speech.push({ text: `Nice set. ${plural(event.set.reps, exercise)}. Rest up`, key: 'set', priority: PRIORITY.info, cooldownMs: 0 });
+      }
+    } else if (event.type === 'exercise') {
+      showCue(`${event.exercise.name} detected`, 'good', now, 1800);
+      speech.push({ text: event.exercise.plural, key: 'exercise', priority: PRIORITY.fault, cooldownMs: 0 });
+      session.cleanStreak = 0;
+      renderChecks();
+    } else if (event.type === 'fault') {
       const { check } = event;
       showCue(check.cue, 'bad', now, 2200);
-      voice.say(check.cue, { key: check.id, priority: PRIORITY.fault, cooldownMs: 5000 });
+      speech.push({ text: check.cue, key: check.id, priority: PRIORITY.fault, cooldownMs: 5000 });
       // Browsers reject vibration before the first tap (e.g. an auto-started demo).
       if (settings.haptics && navigator.userActivation?.hasBeenActive !== false) navigator.vibrate?.(150);
-      renderFlags();
     } else if (event.type === 'partial') {
       showCue(event.cue, 'warn', now, 2000);
-      voice.say(event.cue, { key: 'partial', priority: PRIORITY.partial, cooldownMs: 5000 });
-      renderStats();
+      speech.push({ text: event.cue, key: 'partial', priority: PRIORITY.partial, cooldownMs: 5000 });
     } else if (event.type === 'rep') {
       bumpRepCount(event.count);
       const clean = event.rep.faults.length === 0;
       session.cleanStreak = clean ? session.cleanStreak + 1 : 0;
-      // A form correction on the same frame is more useful than the number.
-      if (!faultThisFrame) voice.count(event.count);
-      if (clean && session.cleanStreak % 5 === 0) {
-        showCue(`${session.cleanStreak} clean reps in a row`, 'good', now, 1600);
-        window.setTimeout(() => {
-          voice.say('Great form. Keep it up.', { key: 'streak', priority: PRIORITY.info, cooldownMs: 10000 });
-        }, 700);
+      // A correction is more useful than the number, so it takes the count's place.
+      if (!faultThisFrame && settings.countReps) {
+        speech.push({ text: String(event.count), key: 'count', priority: PRIORITY.count, cooldownMs: 0 });
       }
-      renderStats();
+      if (clean && session.cleanStreak > 0 && session.cleanStreak % 5 === 0 && !newExercise) {
+        showCue(`${session.cleanStreak} clean reps in a row`, 'good', now, 1600);
+        speech.push({ text: 'Great form. Keep it up', key: 'streak', priority: PRIORITY.info, cooldownMs: 10000 });
+      }
     }
   }
+
+  if (speech.length) voice.sayAll(speech);
+  renderSetPanel();
+  renderWorkoutSets();
 }
 
 function updateHud(result, now) {
-  const ex = exercise();
-  if (result.status === 'tracking') {
+  const exercise = coach.exercise;
+  if (session.shownExerciseId !== result.exerciseId) {
+    session.shownExerciseId = result.exerciseId;
+    els.hudExercise.textContent = exercise ? exercise.name : 'Detecting exercise';
+    els.hudExercise.classList.toggle('is-detecting', !exercise);
+    els.angleLabel.textContent = exercise?.primaryLabel ?? 'Joint angle';
+    els.setExercise.textContent = exercise ? exercise.name : 'Waiting for your first rep';
+    renderChecks();
+  }
+
+  const fps = session.mode === 'demo' || !session.fps.value ? '' : ` · ${session.fps.value} fps`;
+  if (result.status === 'tracking' || result.status === 'idle' || result.status === 'detecting') {
     session.lostSince = null;
-    const phase = result.state === 'rest' ? 'Ready' : 'Tracking';
-    const fps = session.mode === 'demo' || !session.fps.value ? '' : ` · ${session.fps.value} fps`;
-    setStatus('ok', `${ex.name} · ${phase}${fps}`);
-    els.angleValue.textContent = `${Math.round(result.value)}°`;
+    if (result.status === 'detecting') {
+      setStatus('ok', `Watching${fps}`);
+    } else {
+      setStatus('ok', `${result.state === 'rest' ? 'Ready' : 'Tracking'}${fps}`);
+    }
+    els.angleValue.textContent = result.value === undefined ? '--' : `${Math.round(result.value)}°`;
   } else {
     setStatus('warn', result.hint ?? 'Step into the frame');
     els.angleValue.textContent = '--';
@@ -588,53 +583,102 @@ function bumpRepCount(count) {
 // ---------------------------------------------------------------------------
 // Panel
 
-function resetSetUI() {
+function resetWorkoutUI() {
+  session.shownExerciseId = undefined;
   els.repCount.textContent = '0';
   els.depthFill.style.height = '0%';
   els.angleValue.textContent = '--';
-  renderStats();
-  renderFlags();
+  els.hudExercise.textContent = 'Detecting exercise';
+  els.hudExercise.classList.add('is-detecting');
+  els.setExercise.textContent = 'Waiting for your first rep';
+  renderChecks();
+  renderSetPanel();
+  renderWorkoutSets();
 }
 
-function renderStats() {
-  const score = coach.formScore();
+function renderSetPanel() {
+  const set = coach.current;
+  const reps = set?.reps ?? [];
+  const score = reps.length ? Math.round(reps.reduce((sum, r) => sum + r.score, 0) / reps.length) : null;
   els.statScore.textContent = score === null ? '--' : String(score);
-  els.statClean.textContent = String(coach.repLog.filter((r) => r.faults.length === 0).length);
-  els.statPartial.textContent = String(coach.partialReps);
-}
+  els.statClean.textContent = String(reps.filter((r) => r.faults.length === 0).length);
+  els.statPartial.textContent = String(set?.partialReps ?? 0);
+  if (!set) els.repCount.textContent = '0';
 
-function renderFlags() {
-  const entries = coach.summary().faults;
+  const entries = Object.entries(set?.faultCounts ?? {}).sort((a, b) => b[1] - a[1]);
   if (entries.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = coach.reps > 0 ? 'No flags. Clean set so far.' : 'No flags yet.';
+    li.textContent = reps.length > 0 ? 'No flags. Clean set so far.' : 'No flags yet.';
     els.flagList.replaceChildren(li);
     return;
   }
-  els.flagList.replaceChildren(...entries.map((fault) => {
+  els.flagList.replaceChildren(...entries.map(([id, count]) => {
     const li = document.createElement('li');
     const name = document.createElement('span');
     name.className = 'flag-name';
-    name.textContent = fault.label;
-    const count = document.createElement('span');
-    count.className = 'flag-count';
-    count.textContent = `×${fault.count}`;
-    li.append(name, count);
+    name.textContent = checkFor(set.exercise.id, id)?.label ?? id;
+    const badge = document.createElement('span');
+    badge.className = 'flag-count';
+    badge.textContent = `×${count}`;
+    li.append(name, badge);
     return li;
   }));
 }
 
-function saveHistory(summary) {
+function setRow(name, detail, stats, score) {
+  const li = document.createElement('li');
+  const left = document.createElement('div');
+  const title = document.createElement('span');
+  title.className = 'h-name';
+  title.textContent = name;
+  const sub = document.createElement('span');
+  sub.className = 'h-date';
+  sub.textContent = detail;
+  left.append(title, sub);
+  const right = document.createElement('div');
+  right.className = 'h-stats';
+  right.append(stats);
+  if (score !== null && score !== undefined) {
+    const s = document.createElement('span');
+    s.className = 'h-score';
+    s.textContent = ` · ${score}`;
+    right.append(s);
+  }
+  li.append(left, right);
+  return li;
+}
+
+/** Sets recognised in this workout, including the one in progress. */
+function renderWorkoutSets() {
+  const { sets } = coach.summary();
+  if (sets.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'Each exercise she recognises becomes a set here.';
+    els.workoutSets.replaceChildren(li);
+    return;
+  }
+  const open = coach.current ? sets.length - 1 : -1;
+  els.workoutSets.replaceChildren(...sets.map((set, i) => setRow(
+    set.exerciseName,
+    i === open ? 'In progress' : (set.faults[0] ? set.faults[0].label : 'Clean set'),
+    `${set.reps} reps`,
+    set.formScore,
+  )));
+}
+
+function saveHistory(set) {
+  if (!set || (set.reps === 0 && set.partialReps === 0)) return;
   const history = storage.get(HISTORY_KEY, []);
   const list = Array.isArray(history) ? history : [];
   list.unshift({
     at: Date.now(),
-    exerciseId: summary.exerciseId,
-    exerciseName: summary.exerciseName,
-    reps: summary.reps,
-    cleanReps: summary.cleanReps,
-    formScore: summary.formScore,
+    exerciseId: set.exerciseId,
+    exerciseName: set.exerciseName,
+    reps: set.reps,
+    cleanReps: set.cleanReps,
+    formScore: set.formScore,
   });
   storage.set(HISTORY_KEY, list.slice(0, HISTORY_LIMIT));
   renderHistory();
@@ -654,29 +698,12 @@ function renderHistory() {
     els.history.replaceChildren(li);
     return;
   }
-  els.history.replaceChildren(...list.map((item) => {
-    const li = document.createElement('li');
-    const left = document.createElement('div');
-    const name = document.createElement('span');
-    name.className = 'h-name';
-    name.textContent = String(item.exerciseName ?? 'Set');
-    const date = document.createElement('span');
-    date.className = 'h-date';
-    date.textContent = dateFormat.format(new Date(item.at));
-    left.append(name, date);
-
-    const right = document.createElement('div');
-    right.className = 'h-stats';
-    right.append(`${Number(item.reps) || 0} reps`);
-    if (item.formScore !== null && item.formScore !== undefined) {
-      const score = document.createElement('span');
-      score.className = 'h-score';
-      score.textContent = ` · ${item.formScore}`;
-      right.append(score);
-    }
-    li.append(left, right);
-    return li;
-  }));
+  els.history.replaceChildren(...list.map((item) => setRow(
+    String(item.exerciseName ?? 'Set'),
+    dateFormat.format(new Date(item.at)),
+    `${Number(item.reps) || 0} reps`,
+    item.formScore,
+  )));
 }
 
 // ---------------------------------------------------------------------------
@@ -688,13 +715,28 @@ function formatDuration(ms) {
 }
 
 function showSummary(summary, mode) {
-  $('summary-exercise').textContent = summary.exerciseName;
+  const { sets } = summary;
+  const exerciseCount = new Set(sets.map((s) => s.exerciseId)).size;
+  $('summary-eyebrow').textContent = sets.length === 0
+    ? 'Workout'
+    : sets.length === 1
+      ? sets[0].exerciseName
+      : `${sets.length} sets · ${exerciseCount} exercise${exerciseCount === 1 ? '' : 's'}`;
   $('summary-reps').textContent = String(summary.reps);
   $('summary-score').textContent = summary.formScore === null ? '--' : String(summary.formScore);
   $('summary-clean').textContent = String(summary.cleanReps);
   $('summary-partial').textContent = String(summary.partialReps);
   $('summary-tempo').textContent = summary.avgRepMs ? `${(summary.avgRepMs / 1000).toFixed(1)}s` : '--';
   $('summary-duration').textContent = formatDuration(summary.durationMs);
+
+  const setList = $('summary-sets');
+  setList.hidden = sets.length === 0;
+  setList.replaceChildren(...sets.map((set) => setRow(
+    set.exerciseName,
+    set.faults[0] ? `${set.faults[0].label} ×${set.faults[0].count}` : 'Clean set',
+    `${set.reps} reps`,
+    set.formScore,
+  )));
 
   const ring = $('score-ring');
   const score = summary.formScore ?? 0;
@@ -712,19 +754,21 @@ function showSummary(summary, mode) {
   const body = document.createElement('span');
   focus.classList.toggle('is-fault', Boolean(top));
   if (summary.reps === 0) {
+    const partialSet = sets.find((s) => s.partialReps > 0);
     title.textContent = 'No full reps detected';
-    body.textContent = summary.partialReps > 0
-      ? `${summary.partialReps} rep${summary.partialReps === 1 ? '' : 's'} didn't reach full range. ${exercise().partialCue}.`
-      : `Make sure your whole body is in frame. ${exercise().camera}`;
+    body.textContent = partialSet
+      ? `Some reps didn't reach full range. ${EXERCISES[partialSet.exerciseId].partialCue}.`
+      : 'Make sure your whole body is in frame, then move through the full range of motion.';
   } else if (top) {
-    title.textContent = `Next set, focus on: “${top.cue}”`;
-    body.textContent = `${top.label} on ${top.count} of ${summary.reps} rep${summary.reps === 1 ? '' : 's'}.`;
+    title.textContent = `Next time, focus on: “${top.cue}”`;
+    body.textContent = `${top.label} on ${plural(top.count, EXERCISES[top.exerciseId])}.`;
   } else if (summary.partialReps > 0) {
-    title.textContent = `Next set: “${exercise().partialCue}”`;
+    const partialSet = sets.find((s) => s.partialReps > 0);
+    title.textContent = `Next time: “${EXERCISES[partialSet.exerciseId].partialCue}”`;
     body.textContent = `${summary.partialReps} partial rep${summary.partialReps === 1 ? '' : 's'} didn't count.`;
   } else {
     title.textContent = 'Every rep was clean';
-    body.textContent = 'Great control. Add a few reps or a little weight next set.';
+    body.textContent = 'Great control. Add a few reps or a little weight next time.';
   }
   focus.replaceChildren(title, body);
 
@@ -755,6 +799,32 @@ function syncVoiceToggle() {
   $('set-voice').checked = settings.voice;
 }
 
+/** Fill the coach-voice picker with the female voices available on this device. */
+function renderVoiceOptions() {
+  const select = els.voiceSelect;
+  const auto = document.createElement('option');
+  auto.value = 'auto';
+  auto.textContent = 'Automatic (best female voice)';
+  const options = voice.femaleVoices.map((v) => {
+    const option = document.createElement('option');
+    option.value = v.voiceURI;
+    option.textContent = `${v.name} (${v.lang})`;
+    return option;
+  });
+  select.replaceChildren(auto, ...options);
+  const chosen = voice.femaleVoices.some((v) => v.voiceURI === settings.voiceURI) ? settings.voiceURI : 'auto';
+  select.value = chosen;
+  if (!voice.supported) {
+    els.voiceNote.textContent = "This browser can't speak, so cues are shown on screen only.";
+  } else if (voice.femaleVoices.length === 0) {
+    els.voiceNote.textContent = voice.voice
+      ? 'No female voice is installed on this device, so she uses the closest available voice.'
+      : 'Voices are still loading.';
+  } else {
+    els.voiceNote.textContent = `Speaking as ${voice.voice?.name ?? 'the default voice'}`;
+  }
+}
+
 function bindSettings() {
   const bindings = [
     ['set-voice', 'voice'],
@@ -774,6 +844,20 @@ function bindSettings() {
       saveSettings();
     });
   }
+
+  els.voiceSelect.addEventListener('change', () => {
+    settings.voiceURI = els.voiceSelect.value;
+    voice.setVoice(settings.voiceURI);
+    saveSettings();
+  });
+  $('voice-preview').addEventListener('click', () => {
+    voice.cancel();
+    voice.say("Hi, I'm your coach. Squats. One. Two. Push your knees out.", {
+      key: 'preview', priority: PRIORITY.fault, cooldownMs: 0,
+    });
+  });
+  voice.onvoiceschange = renderVoiceOptions;
+  renderVoiceOptions();
 
   for (const radio of document.querySelectorAll('input[name="model"]')) {
     radio.checked = radio.value === settings.model;
@@ -814,30 +898,32 @@ $('video-file').addEventListener('change', (event) => {
   startFile(event.target.files?.[0]);
   event.target.value = '';
 });
-$('btn-end').addEventListener('click', endSet);
+$('btn-end').addEventListener('click', finishWorkout);
 $('btn-pause').addEventListener('click', togglePause);
 $('btn-flip').addEventListener('click', flipCamera);
 $('btn-reset').addEventListener('click', () => {
   coach.reset();
   session.cleanStreak = 0;
-  resetSetUI();
-  showCue('Count reset', 'good', performance.now(), 1000);
+  resetWorkoutUI();
+  showCue('Starting over', 'good', performance.now(), 1000);
 });
-$('open-settings').addEventListener('click', () => els.settingsDialog.showModal());
+$('open-settings').addEventListener('click', () => {
+  renderVoiceOptions();
+  els.settingsDialog.showModal();
+});
 $('clear-history').addEventListener('click', () => {
   storage.remove(HISTORY_KEY);
   renderHistory();
 });
 els.video.addEventListener('ended', () => {
-  if (session.mode === 'file') endSet();
+  if (session.mode === 'file') finishWorkout();
 });
 els.video.addEventListener('resize', () => {
   if (session.mode === 'camera' || session.mode === 'file') sizeCanvas();
 });
 
-renderTabs();
-renderExerciseInfo();
-resetSetUI();
+renderIntro();
+resetWorkoutUI();
 renderHistory();
 bindSettings();
 
