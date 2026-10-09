@@ -111,6 +111,13 @@ p {
   color: var(--accent-ink);
 }
 
+.sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -406,6 +413,22 @@ p {
     padding: 0 16px;
     min-height: 42px;
     font-size: 0.9rem;
+  }
+}
+
+.nav-links .nav-cta {
+  display: none;
+}
+
+@media (max-width: 400px) {
+  .nav-actions .btn-primary {
+    display: none;
+  }
+
+  .nav-links .nav-cta {
+    display: block;
+    color: var(--accent);
+    font-weight: 600;
   }
 }
 

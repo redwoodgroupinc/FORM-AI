@@ -30,6 +30,13 @@ function setupNav() {
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
   });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !header.classList.contains('is-open')) return;
+    header.classList.remove('is-open');
+    toggle?.setAttribute('aria-expanded', 'false');
+    toggle?.setAttribute('aria-label', 'Open menu');
+    toggle?.focus();
+  });
   header.querySelectorAll('.nav-links a').forEach((link) => {
     link.addEventListener('click', () => {
       header.classList.remove('is-open');

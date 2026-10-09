@@ -18,7 +18,7 @@
   <script>document.documentElement.classList.add('js');</script>
 </head>
 <body>
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <svg class="sprite" width="0" height="0" aria-hidden="true">
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></symbol>
     <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
@@ -53,6 +53,7 @@
         <li><a href="#exercises">Exercises</a></li>
         <li><a href="#privacy">Privacy</a></li>
         <li><a href="#faq">FAQ</a></li>
+        <li><a class="nav-cta" href="app.html">Try it live</a></li>
       </ul>
       <div class="nav-actions">
         <a class="btn btn-primary btn-sm" href="app.html">Try it live</a>
@@ -367,7 +368,7 @@
             <li><svg aria-hidden="true"><use href="#i-check"/></svg> Set history stays on your device. Clear it any time.</li>
           </ul>
         </div>
-        <div class="pipeline reveal" aria-label="Processing pipeline: camera, on-device model, joint angles, coach. Nothing goes to the cloud.">
+        <div class="pipeline reveal" role="group" aria-label="Processing pipeline: camera, on-device model, joint angles, coach. Nothing goes to the cloud.">
           <div class="pipe-step"><span class="pipe-icon"><svg aria-hidden="true"><use href="#i-camera"/></svg></span><div><strong>Camera frame</strong><small>Stays in memory for one frame</small></div></div>
           <div class="pipe-line" aria-hidden="true"></div>
           <div class="pipe-step"><span class="pipe-icon is-accent"><svg aria-hidden="true"><use href="#i-cpu"/></svg></span><div><strong>On-device pose model</strong><small>ML Kit / MediaPipe BlazePose</small></div></div>
@@ -468,8 +469,8 @@
               <svg aria-hidden="true"><use href="#i-arrow"/></svg>
             </a>
             <span class="store-row">
-              <span class="store-badge" aria-label="App Store, coming soon"><small>Coming soon</small>App Store</span>
-              <span class="store-badge" aria-label="Google Play, coming soon"><small>Coming soon</small>Google Play</span>
+              <span class="store-badge"><small>Coming soon</small> App Store</span>
+              <span class="store-badge"><small>Coming soon</small> Google Play</span>
             </span>
           </div>
         </div>

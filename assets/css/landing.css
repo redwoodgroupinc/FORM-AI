@@ -313,6 +313,7 @@
 
 .float-card {
   position: absolute;
+  max-width: 230px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -336,7 +337,7 @@
   display: block;
   font-size: 0.92rem;
   font-weight: 600;
-  white-space: nowrap;
+  line-height: 1.3;
 }
 
 .float-icon {
@@ -359,15 +360,23 @@
   height: 20px;
 }
 
+/* Pinned to the phone (330px wide, centred) so they only overlap its empty edges. */
 .float-a {
-  top: 46%;
-  left: -14%;
+  top: 58%;
+  left: calc(50% - 165px - 150px);
 }
 
 .float-b {
-  top: 66%;
-  right: -12%;
+  top: 50%;
+  right: calc(50% - 165px - 130px);
   animation-delay: -3s;
+}
+
+/* Two columns but not enough room beside the phone. */
+@media (min-width: 961px) and (max-width: 1199px) {
+  .float-card {
+    display: none;
+  }
 }
 
 @keyframes float {
@@ -393,13 +402,6 @@
     justify-content: center;
   }
 
-  .float-a {
-    left: calc(50% - 330px);
-  }
-
-  .float-b {
-    right: calc(50% - 330px);
-  }
 }
 
 @media (max-width: 720px) {

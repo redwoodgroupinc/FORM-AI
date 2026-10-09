@@ -351,8 +351,7 @@ body.app {
   position: absolute;
   inset: 0;
   z-index: 5;
-  display: grid;
-  place-items: center;
+  display: flex;
   padding: 24px;
   overflow-y: auto;
   background:
@@ -369,6 +368,8 @@ body.app {
 .intro-card {
   width: 100%;
   max-width: 540px;
+  /* margin:auto centres it but keeps the top reachable when it has to scroll */
+  margin: auto;
   text-align: center;
 }
 
@@ -1143,5 +1144,72 @@ body.app {
 
   .dialog-body {
     padding: 24px 20px;
+  }
+}
+
+/* Short screens: small phones and phones held sideways. */
+@media (max-height: 640px) {
+  .intro-card h1 {
+    font-size: 1.6rem;
+  }
+
+  .intro-camera {
+    margin-top: 8px;
+    font-size: 0.94rem;
+  }
+
+  .intro-checks {
+    margin-top: 12px;
+  }
+
+  .intro-actions {
+    margin-top: 16px;
+  }
+
+  .intro-file,
+  .intro-privacy {
+    margin-top: 12px;
+  }
+}
+
+@media (max-height: 560px) {
+  .app-main {
+    padding-top: 10px;
+    padding-bottom: 16px;
+  }
+
+  .stage {
+    height: calc(100svh - 64px - 20px);
+    min-height: 300px;
+  }
+
+  .hud {
+    padding: 10px 14px;
+  }
+
+  .hud-id {
+    gap: 6px;
+  }
+
+  .rep-count span {
+    font-size: min(clamp(4.5rem, 12vw, 8rem), 22vh);
+  }
+
+  .depth-meter {
+    min-height: 70px;
+  }
+
+  .stage-controls {
+    margin-top: 8px;
+  }
+
+  .cue {
+    margin-top: 6px;
+    padding: 10px 16px;
+    font-size: 1.1rem;
+  }
+
+  .intro-privacy {
+    display: none;
   }
 }

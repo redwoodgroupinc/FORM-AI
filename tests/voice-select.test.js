@@ -110,3 +110,58 @@ test('ranking ignores non-English, non-local voices', () => {
   const ranked = rankVoices([v('Kyoko', 'ja-JP'), v('Samantha', 'en-US')], { lang: 'en-US' });
   assert.deepEqual(ranked.map((r) => r.voice.name), ['Samantha']);
 });
+
+test('handles the naming traps found across real voice lists', () => {
+  const cases = [
+    // Chrome's Chinese Google voices use a no-break space after "Google".
+    [{ name: 'Google\u00a0普通话（中国大陆）' }, 'female'],
+    // Edge multilingual voices are one word.
+    [{ name: 'Microsoft AvaMultilingual Online (Natural) - English (United States)' }, 'female'],
+    [{ name: 'Microsoft AndrewMultilingual Online (Natural) - English (United States)' }, 'male'],
+    // Legacy Android suffix overrides the (female) voice code.
+    [{ name: 'en-us-x-sfg#male_1-local' }, 'male'],
+    [{ name: 'en-us-x-iol#female_2-local' }, 'female'],
+    // Apple Siri voices carry gender in the voiceURI only.
+    [{ name: 'Nicky', voiceURI: 'com.apple.ttsbundle.siri_female_en-US_compact' }, 'female'],
+    [{ name: 'Aaron', voiceURI: 'com.apple.ttsbundle.siri_male_en-US_compact' }, 'male'],
+    // Numbered Google Natural voices: gender only via the exact name.
+    [{ name: 'Google US English 3 (Natural)' }, 'male'],
+    [{ name: 'Google US English 5 (Natural)' }, 'female'],
+    // Substrings must not match: Evan is not Eva, Samantha is not Sam, Markus is not Mark.
+    [{ name: 'Evan' }, 'male'],
+    [{ name: 'Samantha' }, 'female'],
+    // Unisex names stay unknown.
+    [{ name: 'Microsoft Ashley Online (Natural) - English (United States)' }, null],
+    // eSpeak variants.
+    [{ name: 'English (America)+female2' }, 'female'],
+    [{ name: 'English (America)+male3' }, 'male'],
+  ];
+  for (const [voice, expected] of cases) assert.equal(voiceGender(voice), expected, voice.name);
+});
+
+test('never picks novelty voices', () => {
+  const voices = [v('Superstar', 'en-US', { voiceURI: 'com.apple.speech.synthesis.voice.Princess' }), v('Bad News', 'en-US'), v('Fred', 'en-US')];
+  const picked = pickCoachVoice(voices, { lang: 'en-US' });
+  assert.equal(picked.voice.name, 'Fred');
+  assert.equal(picked.female, false);
+  assert.deepEqual(picked.femaleVoices, []);
+});
+
+test('prefers a natural adult voice over robotic or child voices', () => {
+  const voices = [v('Shelley', 'en-US'), v('Microsoft Ana Online (Natural) - English (United States)', 'en-US'), v('Samantha', 'en-US')];
+  assert.equal(pickCoachVoice(voices, { lang: 'en-US' }).voice.name, 'Samantha');
+  // On devices where Eloquence voices are all there is, a robotic female voice still wins.
+  assert.equal(pickCoachVoice([v('Shelley', 'en-US'), v('Eddy', 'en-US')], { lang: 'en-US' }).voice.name, 'Shelley');
+});
+
+test('ignores voice.default, which is often a male voice', () => {
+  const voices = [v('Microsoft David - English (United States)', 'en-US', { default: true }), v('Microsoft Zira - English (United States)', 'en-US')];
+  assert.match(pickCoachVoice(voices, { lang: 'en-US' }).voice.name, /Zira/);
+});
+
+test('understands Android language tags with underscores', () => {
+  const picked = pickCoachVoice([v('en-gb-x-gba-local', 'en_GB'), v('en-us-x-iom-local', 'en_US')], { lang: 'en-US' });
+  assert.equal(picked.voice.name, 'en-gb-x-gba-local');
+  assert.equal(picked.female, true);
+});
+

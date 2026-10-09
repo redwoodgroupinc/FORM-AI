@@ -9,7 +9,9 @@ export const PRIORITY = Object.freeze({ count: 1, info: 2, partial: 2, fault: 3 
 
 // Without a female voice installed, a raised pitch keeps the closest voice nearer hers.
 const FEMALE_PITCH = 1.05;
-const FALLBACK_PITCH = 1.3;
+const FALLBACK_PITCH = 1.25;
+// getVoices() is often empty at first, and iOS Safari may never fire 'voiceschanged'.
+const VOICE_RETRY_MS = [250, 1000, 2500, 5000];
 
 export class VoiceCoach {
   constructor({ enabled = true, countReps = true, voiceURI = 'auto' } = {}) {
@@ -20,12 +22,17 @@ export class VoiceCoach {
     this.voice = null;
     this.female = false;
     this.femaleVoices = [];
+    this.loadingVoices = true;
     this.onvoiceschange = null;
     this.currentPriority = 0;
     this.lastSpokenAt = new Map();
     if (this.supported) {
       this.pickVoice();
       window.speechSynthesis.addEventListener?.('voiceschanged', () => this.pickVoice());
+      VOICE_RETRY_MS.forEach((ms, i) => window.setTimeout(() => {
+        if (i === VOICE_RETRY_MS.length - 1) this.loadingVoices = false;
+        if (!this.voice || !this.loadingVoices) this.pickVoice();
+      }, ms));
     }
   }
 
@@ -72,6 +79,9 @@ export class VoiceCoach {
     const priority = Math.max(...fresh.map((item) => item.priority ?? PRIORITY.info));
 
     const synth = window.speechSynthesis;
+    if (!this.voice) this.pickVoice();
+    // iOS can leave the synthesizer paused after the app was in the background.
+    if (synth.paused) synth.resume();
     if (synth.speaking || synth.pending) {
       if (priority <= this.currentPriority) return false;
       synth.cancel();

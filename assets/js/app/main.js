@@ -423,7 +423,8 @@ function tick(now) {
     pose = programFrame(time, DEMO_PROGRAM, { aspect, ...DEMO_FRAMING }).pose;
   } else {
     const video = els.video;
-    if (video.readyState < 2 || video.currentTime === session.lastVideoTime) return;
+    // The detector is briefly missing while the tracking model is being switched.
+    if (!session.detector || video.readyState < 2 || video.currentTime === session.lastVideoTime) return;
     session.lastVideoTime = video.currentTime;
     if (els.canvas.width !== video.videoWidth || els.canvas.height !== video.videoHeight) sizeCanvas();
     try {
@@ -817,9 +818,13 @@ function renderVoiceOptions() {
   if (!voice.supported) {
     els.voiceNote.textContent = "This browser can't speak, so cues are shown on screen only.";
   } else if (voice.femaleVoices.length === 0) {
-    els.voiceNote.textContent = voice.voice
-      ? 'No female voice is installed on this device, so she uses the closest available voice.'
-      : 'Voices are still loading.';
+    if (voice.voice) {
+      els.voiceNote.textContent = 'No female voice is installed on this device, so she uses the closest available voice.';
+    } else {
+      els.voiceNote.textContent = voice.loadingVoices
+        ? 'Voices are still loading.'
+        : 'This browser has no speech voices, so cues are shown on screen only.';
+    }
   } else {
     els.voiceNote.textContent = `Speaking as ${voice.voice?.name ?? 'the default voice'}`;
   }
