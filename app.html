@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Live Coach · Form AI Coach</title>
+  <meta name="description" content="Real-time rep counting, form checks and voice cues from your camera. Pose estimation runs on your device, so video never leaves it.">
+  <meta name="theme-color" content="#07080a">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://storage.googleapis.com" crossorigin>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="app">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></g></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2.5h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></g></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></symbol>
+    <symbol id="i-flip" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/></g></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9"/><path d="M4.5 4.5V9H9"/></g></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v5h16v-5"/></g></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></g></symbol>
+    <symbol id="i-voice" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></g></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></g></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2.8 19.5h18.4z"/><path d="M12 10v4M12 16.8v.2"/></g></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </svg>
+
+  <header class="app-bar">
+    <a class="brand" href="index.html" aria-label="Form AI Coach home">
+      <img class="brand-mark" src="assets/img/favicon.svg" alt="" width="32" height="32">
+      <span class="brand-name">Form <span>AI</span> Coach</span>
+    </a>
+    <div class="exercise-tabs" id="exercise-tabs" role="tablist" aria-label="Exercise"></div>
+    <div class="app-bar-actions">
+      <button class="btn btn-ghost btn-icon" id="voice-toggle" type="button" aria-pressed="true" aria-label="Voice cues on">
+        <svg aria-hidden="true"><use href="#i-voice"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-icon" id="open-settings" type="button" aria-label="Settings">
+        <svg aria-hidden="true"><use href="#i-settings"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section class="stage-wrap" aria-label="Camera">
+      <div class="stage" id="stage" data-mode="idle">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay" aria-hidden="true"></canvas>
+
+        <div class="hud" id="hud">
+          <div class="hud-top">
+            <span class="pill status-pill" id="status-pill"><span class="dot is-idle" id="status-dot"></span><span id="status-text">Ready</span></span>
+            <span class="hud-angle" id="angle-readout"><small id="angle-label">Knee angle</small><b id="angle-value">--</b></span>
+          </div>
+          <div class="cue" id="cue" role="status" aria-live="assertive">
+            <svg aria-hidden="true"><use href="#i-alert"/></svg>
+            <span id="cue-text"></span>
+          </div>
+          <div class="hud-bottom">
+            <div class="rep-count">
+              <span id="rep-count">0</span>
+              <small>reps</small>
+            </div>
+            <div class="depth-meter" aria-hidden="true">
+              <div class="depth-fill" id="depth-fill"></div>
+              <span class="depth-target"></span>
+            </div>
+          </div>
+          <div class="stage-controls">
+            <button class="btn btn-icon ctrl" id="btn-reset" type="button" aria-label="Reset reps"><svg aria-hidden="true"><use href="#i-reset"/></svg></button>
+            <button class="btn btn-icon ctrl" id="btn-pause" type="button" aria-label="Pause"><svg aria-hidden="true"><use href="#i-pause"/></svg></button>
+            <button class="btn btn-primary ctrl-end" id="btn-end" type="button"><svg aria-hidden="true"><use href="#i-stop"/></svg> End set</button>
+            <button class="btn btn-icon ctrl" id="btn-flip" type="button" aria-label="Switch camera"><svg aria-hidden="true"><use href="#i-flip"/></svg></button>
+          </div>
+        </div>
+
+        <div class="stage-intro" id="intro">
+          <div class="intro-card">
+            <span class="eyebrow" id="intro-eyebrow">Squat</span>
+            <h1>Set up your camera</h1>
+            <p class="intro-camera" id="intro-camera"></p>
+            <ul class="intro-checks" id="intro-checks"></ul>
+            <div class="intro-actions">
+              <button class="btn btn-primary btn-lg" id="start-camera" type="button">
+                <svg aria-hidden="true"><use href="#i-camera"/></svg> Start camera
+              </button>
+              <button class="btn btn-lg" id="start-demo" type="button">
+                <svg aria-hidden="true"><use href="#i-play"/></svg> Watch a demo set
+              </button>
+            </div>
+            <label class="intro-file">
+              <input type="file" id="video-file" accept="video/*" class="sr-only">
+              <svg aria-hidden="true"><use href="#i-upload"/></svg>
+              <span>Or analyse a workout video from your device</span>
+            </label>
+            <p class="intro-error" id="intro-error" role="alert" hidden></p>
+            <p class="intro-privacy"><svg aria-hidden="true"><use href="#i-lock"/></svg> Runs entirely on this device. Video is never recorded or uploaded.</p>
+          </div>
+        </div>
+
+        <div class="stage-loading" id="loading" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <p id="loading-text">Loading on-device pose model…</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="Set details">
+      <section class="card">
+        <div class="card-head">
+          <h2>This set</h2>
+          <span class="card-sub" id="set-exercise">Squat</span>
+        </div>
+        <div class="set-stats">
+          <div class="set-stat"><strong id="stat-score">--</strong><span>Form score</span></div>
+          <div class="set-stat"><strong id="stat-clean">0</strong><span>Clean reps</span></div>
+          <div class="set-stat"><strong id="stat-partial">0</strong><span>Partial reps</span></div>
+        </div>
+        <h3 class="card-label">Form flags</h3>
+        <ul class="flag-list" id="flag-list">
+          <li class="empty">No flags yet.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>What we check</h2>
+        </div>
+        <ul class="check-list" id="check-list"></ul>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Recent sets</h2>
+          <button class="link-btn" id="clear-history" type="button">Clear</button>
+        </div>
+        <ul class="history" id="history"></ul>
+        <p class="card-foot">Saved only in this browser.</p>
+      </section>
+    </aside>
+  </main>
+
+  <dialog class="dialog" id="summary-dialog" aria-labelledby="summary-title">
+    <form method="dialog" class="dialog-body">
+      <button class="btn btn-ghost btn-icon dialog-close" value="close" aria-label="Close"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
+      <span class="eyebrow" id="summary-exercise">Squat</span>
+      <h2 id="summary-title">Set complete</h2>
+      <div class="summary-hero">
+        <div class="score-ring" id="score-ring">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="ring-track" cx="60" cy="60" r="52"/>
+            <circle class="ring-fill" id="ring-fill" cx="60" cy="60" r="52"/>
+          </svg>
+          <div class="score-ring-label"><strong id="summary-score">--</strong><span>form score</span></div>
+        </div>
+        <div class="summary-reps"><strong id="summary-reps">0</strong><span>reps</span></div>
+      </div>
+      <div class="summary-grid">
+        <div><strong id="summary-clean">0</strong><span>Clean reps</span></div>
+        <div><strong id="summary-partial">0</strong><span>Partial reps</span></div>
+        <div><strong id="summary-tempo">--</strong><span>Avg rep time</span></div>
+        <div><strong id="summary-duration">--</strong><span>Set duration</span></div>
+      </div>
+      <div class="summary-focus" id="summary-focus"></div>
+      <div class="dialog-actions">
+        <button class="btn btn-primary btn-lg" value="again">Start next set</button>
+        <button class="btn btn-lg" value="close">Done</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog" id="settings-dialog" aria-labelledby="settings-title">
+    <form method="dialog" class="dialog-body">
+      <button class="btn btn-ghost btn-icon dialog-close" value="close" aria-label="Close"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
+      <h2 id="settings-title">Settings</h2>
+      <div class="settings">
+        <label class="toggle"><span><strong>Voice cues</strong><small>Speak form corrections mid-set</small></span><input type="checkbox" id="set-voice" checked><i aria-hidden="true"></i></label>
+        <label class="toggle"><span><strong>Count reps aloud</strong><small>Say each rep number</small></span><input type="checkbox" id="set-count" checked><i aria-hidden="true"></i></label>
+        <label class="toggle"><span><strong>Vibrate on form flags</strong><small>Android only</small></span><input type="checkbox" id="set-haptics" checked><i aria-hidden="true"></i></label>
+        <label class="toggle"><span><strong>Show joint angle</strong><small>Draw the measured angle on screen</small></span><input type="checkbox" id="set-angle" checked><i aria-hidden="true"></i></label>
+        <fieldset class="segmented">
+          <legend><strong>Tracking model</strong><small>Accurate is better for push-ups and lunges, Fast suits older phones</small></legend>
+          <label><input type="radio" name="model" value="lite" checked><span>Fast</span></label>
+          <label><input type="radio" name="model" value="full"><span>Accurate</span></label>
+        </fieldset>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-primary btn-lg" value="close">Done</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="assets/js/app/main.js"></script>
+</body>
+</html>

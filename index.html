@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Form AI Coach · Real-time form feedback from your phone camera</title>
+  <meta name="description" content="Prop up your phone and train. Form AI Coach tracks your body in real time, counts reps, spots bad form like knees caving in or a rounding back, and gives you voice cues mid-set. Pose estimation runs on your device, so your video stays private.">
+  <meta name="theme-color" content="#07080a">
+  <meta property="og:title" content="Form AI Coach">
+  <meta property="og:description" content="Your phone becomes a personal trainer. Real-time rep counting, form checks and voice cues. Runs on-device.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/landing.css">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-pose" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"/><path d="M12 7v6M7 9.5l5 1 5-1M12 13l-3.5 4 1 4M12 13l3.5 4-1 4"/></g></symbol>
+    <symbol id="i-voice" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></g></symbol>
+    <symbol id="i-count" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.5l2.3 2.3 4.7-5"/></g></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2.8 19.5h18.4z"/><path d="M12 10v4M12 16.8v.2"/></g></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></g></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M7 16v-4M12 16V7M17 16v-6"/></g></symbol>
+    <symbol id="i-devices" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="13" height="10" rx="1.5"/><path d="M6 19h6"/><rect x="16.5" y="8" width="5" height="11" rx="1.5"/></g></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2.5h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></g></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9.5 9.5h5v5h-5zM9 2.5V6M15 2.5V6M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/></g></symbol>
+    <symbol id="i-cloud-off" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18h10.5a3.5 3.5 0 0 0 .6-6.95A6 6 0 0 0 6.6 10.2 4 4 0 0 0 7 18z"/><path d="M3 3l18 18"/></g></symbol>
+    <symbol id="i-plate" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/></g></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-timer" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M9.5 2.5h5"/></g></symbol>
+    <symbol id="i-depth" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v14M7.5 12.5 12 17l4.5-4.5"/><path d="M4 21h16" stroke-dasharray="2.5 2.5"/></g></symbol>
+  </svg>
+
+  <header class="site-header" id="top">
+    <nav class="container nav" aria-label="Main">
+      <a class="brand" href="#top" aria-label="Form AI Coach home">
+        <img class="brand-mark" src="assets/img/favicon.svg" alt="" width="32" height="32">
+        <span class="brand-name">Form <span>AI</span> Coach</span>
+      </a>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#how">How it works</a></li>
+        <li><a href="#faults">Form checks</a></li>
+        <li><a href="#exercises">Exercises</a></li>
+        <li><a href="#privacy">Privacy</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a class="btn btn-primary btn-sm" href="app.html">Try it live</a>
+        <button class="btn btn-ghost btn-icon nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">
+          <svg aria-hidden="true"><use href="#i-menu"/></svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <span class="pill hero-badge"><span class="dot"></span> On-device AI · No video uploads</span>
+          <h1>A personal trainer that <em>watches every rep.</em></h1>
+          <p class="hero-lede">
+            Prop up your phone and start moving. Form AI Coach tracks your body in real time,
+            counts your reps, catches bad form like <strong>knees caving in</strong> or a
+            <strong>rounding back</strong>, and talks you through it mid-set.
+          </p>
+          <div class="hero-ctas">
+            <a class="btn btn-primary btn-lg" href="app.html">
+              Start a free set
+              <svg aria-hidden="true"><use href="#i-arrow"/></svg>
+            </a>
+            <a class="btn btn-lg" href="app.html?demo=1">
+              <svg aria-hidden="true"><use href="#i-play"/></svg>
+              Watch a demo set
+            </a>
+          </div>
+          <ul class="hero-proof">
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> Works in your browser today</li>
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> No account needed</li>
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> iOS &amp; Android apps coming soon</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual">
+          <div class="phone" role="img" aria-label="Animated preview of Form AI Coach tracking a squat, counting reps and flagging knees caving in">
+            <div class="phone-screen">
+              <canvas id="hero-canvas" width="540" height="960" aria-hidden="true"></canvas>
+              <div class="phone-hud" aria-hidden="true">
+                <div class="hud-top">
+                  <span class="pill hud-pill"><span class="dot"></span> Squat · Tracking</span>
+                  <span class="hud-score"><b id="hero-score">--</b><small>form</small></span>
+                </div>
+                <div class="hero-cue" id="hero-cue">
+                  <svg><use href="#i-voice"/></svg>
+                  <span id="hero-cue-text">Push your knees out</span>
+                </div>
+                <div class="hud-bottom">
+                  <div class="hud-reps"><span id="hero-reps">0</span><small>reps</small></div>
+                  <div class="hud-depth" title="Depth">
+                    <div class="hud-depth-fill" id="hero-depth"></div>
+                    <span class="hud-depth-target"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="float-card float-a" aria-hidden="true">
+            <span class="float-icon"><svg><use href="#i-voice"/></svg></span>
+            <div>
+              <small>Voice cue</small>
+              <strong id="hero-voice">“Nice depth. Keep going.”</strong>
+            </div>
+          </div>
+          <div class="float-card float-b" aria-hidden="true">
+            <span class="float-icon is-cyan"><svg><use href="#i-cpu"/></svg></span>
+            <div>
+              <small>Processed on device</small>
+              <strong>0 frames uploaded</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats" aria-label="Key numbers">
+      <div class="container stats-grid">
+        <div class="stat"><strong>33</strong><span>body landmarks tracked every frame</span></div>
+        <div class="stat"><strong>30<small>fps</small></strong><span>real-time tracking on a modern phone</span></div>
+        <div class="stat"><strong>0</strong><span>video frames sent to a server</span></div>
+        <div class="stat"><strong>5</strong><span>exercises at launch, more on the way</span></div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section" id="how">
+      <div class="container">
+        <header class="section-head">
+          <span class="eyebrow">How it works</span>
+          <h2>Set up in ten seconds. Coached for the whole set.</h2>
+          <p>No wearables, no mirrors, no guesswork. Just the camera you already carry.</p>
+        </header>
+        <ol class="steps">
+          <li class="step reveal">
+            <span class="step-num">01</span>
+            <span class="step-icon"><svg aria-hidden="true"><use href="#i-phone"/></svg></span>
+            <h3>Prop up your phone</h3>
+            <p>Lean it against a water bottle 2–3 m away and pick an exercise. We show you the best camera angle for each movement.</p>
+          </li>
+          <li class="step reveal">
+            <span class="step-num">02</span>
+            <span class="step-icon"><svg aria-hidden="true"><use href="#i-pose"/></svg></span>
+            <h3>Start moving</h3>
+            <p>On-device pose estimation maps 33 points on your body every frame and measures your joint angles in 3D as you move.</p>
+          </li>
+          <li class="step reveal">
+            <span class="step-num">03</span>
+            <span class="step-icon"><svg aria-hidden="true"><use href="#i-voice"/></svg></span>
+            <h3>Listen and adjust</h3>
+            <p>Hear your rep count and short cues like “Chest up” or “Push your knees out” the moment they matter. No need to look at the screen.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section section-alt" id="features">
+      <div class="container">
+        <header class="section-head">
+          <span class="eyebrow">Features</span>
+          <h2>Everything a good spotter does, built into your camera.</h2>
+        </header>
+        <div class="features">
+          <article class="feature reveal">
+            <span class="feature-icon"><svg aria-hidden="true"><use href="#i-count"/></svg></span>
+            <h3>Reps that actually count</h3>
+            <p>Only full-range reps get counted. Half reps are flagged, so your numbers mean something.</p>
+          </article>
+          <article class="feature reveal">
+            <span class="feature-icon is-danger"><svg aria-hidden="true"><use href="#i-alert"/></svg></span>
+            <h3>Real-time form checks</h3>
+            <p>Knees caving in, back rounding, hips sagging, elbows drifting, swinging and rushing, all caught as they happen.</p>
+          </article>
+          <article class="feature reveal">
+            <span class="feature-icon"><svg aria-hidden="true"><use href="#i-voice"/></svg></span>
+            <h3>Voice cues mid-set</h3>
+            <p>Short, spoken corrections timed so they never talk over each other. Form fixes always come before rep counts.</p>
+          </article>
+          <article class="feature reveal">
+            <span class="feature-icon is-cyan"><svg aria-hidden="true"><use href="#i-lock"/></svg></span>
+            <h3>Private by design</h3>
+            <p>Pose estimation runs on your device with Google ML Kit and MediaPipe. Your video never leaves your phone.</p>
+          </article>
+          <article class="feature reveal">
+            <span class="feature-icon"><svg aria-hidden="true"><use href="#i-chart"/></svg></span>
+            <h3>Set reports</h3>
+            <p>Form score, clean versus flagged reps, tempo, and the one thing to focus on in your next set.</p>
+          </article>
+          <article class="feature reveal">
+            <span class="feature-icon is-cyan"><svg aria-hidden="true"><use href="#i-devices"/></svg></span>
+            <h3>iPhone, Android and web</h3>
+            <p>The same 33-point pose model runs on iOS and Android, and right here in your browser.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Faults -->
+    <section class="section" id="faults">
+      <div class="container">
+        <header class="section-head">
+          <span class="eyebrow">Form checks</span>
+          <h2>It sees what you can't see mid-set.</h2>
+          <p>Each check is a measurable joint angle or alignment, tuned per exercise and confirmed over several frames before you hear about it.</p>
+        </header>
+        <div class="faults">
+          <article class="fault reveal">
+            <svg class="fault-art" viewBox="0 0 160 120" aria-hidden="true">
+              <g class="ok-dash"><path d="M62 22 50 62 54 104M98 22l12 40-4 42"/></g>
+              <g class="bone"><path d="M62 22h36"/><path d="M62 22 74 62 56 104"/><path d="M98 22 86 62 104 104"/></g>
+              <g class="bad-joint"><circle cx="74" cy="62" r="5"/><circle cx="86" cy="62" r="5"/></g>
+              <g class="joint"><circle cx="62" cy="22" r="4"/><circle cx="98" cy="22" r="4"/><circle cx="56" cy="104" r="4"/><circle cx="104" cy="104" r="4"/></g>
+              <g class="hint-arrow"><path d="M66 62h-14M57 57l-5 5 5 5M94 62h14M103 57l5 5-5 5"/></g>
+            </svg>
+            <div class="fault-body">
+              <span class="fault-tag">Squat</span>
+              <h3>Knees caving in</h3>
+              <p class="fault-cue">“Push your knees out”</p>
+              <p>Compares the gap between your knees to the gap between your ankles at the bottom of each squat.</p>
+            </div>
+          </article>
+          <article class="fault reveal">
+            <svg class="fault-art" viewBox="0 0 160 120" aria-hidden="true">
+              <g class="ok-dash"><path d="M104 72 84 30"/></g>
+              <g class="bone"><path d="M84 106 60 80 104 72"/><path d="M84 106h22"/><path d="M70 46 60 68 46 74"/></g>
+              <path class="bad-bone" d="M104 72C102 46 88 36 70 46"/>
+              <g class="bad-joint"><circle cx="70" cy="46" r="5"/></g>
+              <g class="joint"><circle cx="104" cy="72" r="4"/><circle cx="60" cy="80" r="4"/><circle cx="84" cy="106" r="4"/></g>
+              <circle class="head" cx="58" cy="36" r="9"/>
+            </svg>
+            <div class="fault-body">
+              <span class="fault-tag">Squat</span>
+              <h3>Back rounding</h3>
+              <p class="fault-cue">“Chest up. Keep your back flat”</p>
+              <p>Tracks your torso angle against vertical so you hear about a collapsing chest before it costs you the rep.</p>
+            </div>
+          </article>
+          <article class="fault reveal">
+            <svg class="fault-art" viewBox="0 0 160 120" aria-hidden="true">
+              <g class="ok-dash"><path d="M40 60 142 96"/></g>
+              <g class="bone"><path d="M40 60v40"/><path d="M40 100h-8"/></g>
+              <path class="bad-bone" d="M40 60 92 94 142 96"/>
+              <g class="bad-joint"><circle cx="92" cy="94" r="5"/></g>
+              <g class="joint"><circle cx="40" cy="60" r="4"/><circle cx="40" cy="100" r="4"/><circle cx="142" cy="96" r="4"/></g>
+              <circle class="head" cx="27" cy="52" r="9"/>
+            </svg>
+            <div class="fault-body">
+              <span class="fault-tag">Push-up</span>
+              <h3>Hips sagging</h3>
+              <p class="fault-cue">“Squeeze your glutes. Don't let your hips sag”</p>
+              <p>Measures how far your hips drop below the line from shoulder to ankle. It also catches hips piking up.</p>
+            </div>
+          </article>
+          <article class="fault reveal">
+            <svg class="fault-art" viewBox="0 0 160 120" aria-hidden="true">
+              <g class="ok-dash"><path d="M82 30v34"/></g>
+              <g class="bone"><path d="M82 30 84 98"/><path d="M84 98 78 112"/></g>
+              <path class="bad-bone" d="M82 30 58 58 50 30"/>
+              <g class="bad-joint"><circle cx="58" cy="58" r="5"/></g>
+              <g class="joint"><circle cx="82" cy="30" r="4"/><circle cx="50" cy="30" r="4"/><circle cx="84" cy="98" r="4"/></g>
+              <circle class="head" cx="84" cy="15" r="9"/>
+            </svg>
+            <div class="fault-body">
+              <span class="fault-tag">Bicep curl</span>
+              <h3>Elbows drifting</h3>
+              <p class="fault-cue">“Pin your elbows to your sides”</p>
+              <p>Watches your upper arm angle so the biceps do the work instead of your front delts.</p>
+            </div>
+          </article>
+          <article class="fault reveal">
+            <div class="fault-art fault-art-icon" aria-hidden="true"><svg><use href="#i-depth"/></svg></div>
+            <div class="fault-body">
+              <span class="fault-tag">Every exercise</span>
+              <h3>Partial reps</h3>
+              <p class="fault-cue">“Sit deeper. Hips down to knee level”</p>
+              <p>A rep only counts when you reach full range. Close-but-not-quite reps get a cue instead of a number.</p>
+            </div>
+          </article>
+          <article class="fault reveal">
+            <div class="fault-art fault-art-icon" aria-hidden="true"><svg><use href="#i-timer"/></svg></div>
+            <div class="fault-body">
+              <span class="fault-tag">Every exercise</span>
+              <h3>Rushing reps</h3>
+              <p class="fault-cue">“Slow down. Control every rep”</p>
+              <p>Times each rep from start to finish and flags reps that are too fast to be controlled.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Exercises -->
+    <section class="section section-alt" id="exercises">
+      <div class="container">
+        <header class="section-head">
+          <span class="eyebrow">Exercises</span>
+          <h2>Five foundational movements at launch.</h2>
+          <p>Each one comes with its own camera setup, rep thresholds and form checks.</p>
+        </header>
+        <div class="exercises">
+          <a class="exercise reveal" href="app.html?exercise=squat">
+            <div class="exercise-top"><h3>Squat</h3><span class="exercise-view">45° view</span></div>
+            <ul><li>Depth to parallel</li><li>Knees caving in</li><li>Back rounding</li></ul>
+            <span class="exercise-go">Try it <svg aria-hidden="true"><use href="#i-arrow"/></svg></span>
+          </a>
+          <a class="exercise reveal" href="app.html?exercise=pushup">
+            <div class="exercise-top"><h3>Push-up</h3><span class="exercise-view">Side view</span></div>
+            <ul><li>Chest-to-floor depth</li><li>Hips sagging</li><li>Hips piking</li></ul>
+            <span class="exercise-go">Try it <svg aria-hidden="true"><use href="#i-arrow"/></svg></span>
+          </a>
+          <a class="exercise reveal" href="app.html?exercise=lunge">
+            <div class="exercise-top"><h3>Lunge</h3><span class="exercise-view">Side view</span></div>
+            <ul><li>Front knee depth</li><li>Leaning forward</li><li>Tempo</li></ul>
+            <span class="exercise-go">Try it <svg aria-hidden="true"><use href="#i-arrow"/></svg></span>
+          </a>
+          <a class="exercise reveal" href="app.html?exercise=curl">
+            <div class="exercise-top"><h3>Bicep curl</h3><span class="exercise-view">Front view</span></div>
+            <ul><li>Full range of motion</li><li>Elbows drifting</li><li>Swinging</li></ul>
+            <span class="exercise-go">Try it <svg aria-hidden="true"><use href="#i-arrow"/></svg></span>
+          </a>
+          <a class="exercise reveal" href="app.html?exercise=press">
+            <div class="exercise-top"><h3>Overhead press</h3><span class="exercise-view">Front view</span></div>
+            <ul><li>Full lockout</li><li>Lower-back arch</li><li>Uneven arms</li></ul>
+            <span class="exercise-go">Try it <svg aria-hidden="true"><use href="#i-arrow"/></svg></span>
+          </a>
+          <div class="exercise exercise-soon reveal">
+            <div class="exercise-top"><h3>Coming next</h3><span class="exercise-view">Roadmap</span></div>
+            <ul><li>Deadlift &amp; hip hinge</li><li>Plank &amp; side plank holds</li><li>Glute bridge, rows, jumps</li></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Privacy -->
+    <section class="section" id="privacy">
+      <div class="container privacy">
+        <div class="privacy-copy">
+          <span class="eyebrow">Privacy</span>
+          <h2>Your camera feed never leaves your phone.</h2>
+          <p>
+            Form AI Coach uses on-device pose estimation (Google ML Kit on mobile, MediaPipe on the web).
+            The model turns each frame into 33 body coordinates right on your device. Only those numbers
+            are used to coach you. Video is never recorded, uploaded or stored.
+          </p>
+          <ul class="checklist">
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> No video upload, ever. Works with your connection off once loaded.</li>
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> No account needed to train.</li>
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> Set history stays on your device. Clear it any time.</li>
+          </ul>
+        </div>
+        <div class="pipeline reveal" aria-label="Processing pipeline: camera, on-device model, joint angles, coach. Nothing goes to the cloud.">
+          <div class="pipe-step"><span class="pipe-icon"><svg aria-hidden="true"><use href="#i-camera"/></svg></span><div><strong>Camera frame</strong><small>Stays in memory for one frame</small></div></div>
+          <div class="pipe-line" aria-hidden="true"></div>
+          <div class="pipe-step"><span class="pipe-icon is-accent"><svg aria-hidden="true"><use href="#i-cpu"/></svg></span><div><strong>On-device pose model</strong><small>ML Kit / MediaPipe BlazePose</small></div></div>
+          <div class="pipe-line" aria-hidden="true"></div>
+          <div class="pipe-step"><span class="pipe-icon"><svg aria-hidden="true"><use href="#i-pose"/></svg></span><div><strong>33 landmarks → joint angles</strong><small>Just numbers, no pixels</small></div></div>
+          <div class="pipe-line" aria-hidden="true"></div>
+          <div class="pipe-step"><span class="pipe-icon"><svg aria-hidden="true"><use href="#i-voice"/></svg></span><div><strong>Reps, form checks, voice cues</strong><small>Computed locally in real time</small></div></div>
+          <div class="pipe-cloud"><svg aria-hidden="true"><use href="#i-cloud-off"/></svg> Cloud upload: none</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- My Diet -->
+    <section class="section section-alt" id="my-diet">
+      <div class="container">
+        <header class="section-head">
+          <span class="eyebrow">Better together</span>
+          <h2>Snap your meals. Perfect your reps.</h2>
+          <p>Form AI Coach is built to pair with the My Diet camera. One camera-first routine for what you eat and how you train.</p>
+        </header>
+        <div class="pair">
+          <article class="pair-card reveal">
+            <span class="pair-icon"><svg aria-hidden="true"><use href="#i-plate"/></svg></span>
+            <h3>My Diet</h3>
+            <p>Point your camera at a meal and log it in seconds.</p>
+            <ul class="checklist small">
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg> Camera food logging</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg> Daily nutrition targets</li>
+            </ul>
+          </article>
+          <div class="pair-plus" aria-hidden="true"><svg><use href="#i-plus"/></svg></div>
+          <article class="pair-card is-accent reveal">
+            <span class="pair-icon"><svg aria-hidden="true"><use href="#i-pose"/></svg></span>
+            <h3>Form AI Coach</h3>
+            <p>Prop up your phone and get coached through every rep.</p>
+            <ul class="checklist small">
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg> Real-time rep counting and form checks</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg> Workouts that can feed your daily targets <span class="soon">Coming soon</span></li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="container faq-wrap">
+        <header class="section-head">
+          <span class="eyebrow">FAQ</span>
+          <h2>Questions, answered.</h2>
+        </header>
+        <div class="faq">
+          <details>
+            <summary>Do I need any equipment?</summary>
+            <p>Just a phone or laptop with a camera. Prop it somewhere stable, like against a water bottle or on a shelf, so your whole body is in frame.</p>
+          </details>
+          <details>
+            <summary>Is my video uploaded anywhere?</summary>
+            <p>No. Pose estimation runs on your device. Each frame becomes 33 body coordinates in memory, and only those numbers are used to count reps and check form. Nothing is recorded or sent to a server.</p>
+          </details>
+          <details>
+            <summary>Where should I put my phone?</summary>
+            <p>About 2–3 metres away, around hip height. Squats work best at a 45° angle so both depth and knee tracking are visible. Push-ups and lunges work best side-on. Curls and presses work best facing the camera. The app shows the right setup for each exercise.</p>
+          </details>
+          <details>
+            <summary>How accurate is the rep counting?</summary>
+            <p>Reps are counted from joint angles, so a rep only counts once you reach full range and return to the start. Accuracy is best with your full body in frame, decent lighting and fitted clothing. Baggy clothes and very dark rooms make tracking harder.</p>
+          </details>
+          <details>
+            <summary>Does it work offline?</summary>
+            <p>The mobile apps bundle the pose model, so they work fully offline. The web version downloads the model once (about 6 MB) and your browser caches it for next time.</p>
+          </details>
+          <details>
+            <summary>Is this a replacement for a coach or physiotherapist?</summary>
+            <p>No. Form AI Coach gives general technique feedback to help you train more consistently. It is not medical advice. If something hurts, stop and talk to a qualified professional.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+      <div class="container">
+        <div class="cta-card reveal">
+          <h2>Your next set, coached.</h2>
+          <p>Open the coach in your browser, prop up your phone and do five squats. That's all it takes to see it work.</p>
+          <div class="hero-ctas">
+            <a class="btn btn-primary btn-lg" href="app.html">
+              Launch the live coach
+              <svg aria-hidden="true"><use href="#i-arrow"/></svg>
+            </a>
+            <span class="store-row">
+              <span class="store-badge" aria-label="App Store, coming soon"><small>Coming soon</small>App Store</span>
+              <span class="store-badge" aria-label="Google Play, coming soon"><small>Coming soon</small>Google Play</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <a class="brand" href="#top">
+          <img class="brand-mark" src="assets/img/favicon.svg" alt="" width="32" height="32">
+          <span class="brand-name">Form <span>AI</span> Coach</span>
+        </a>
+        <ul class="footer-links">
+          <li><a href="app.html">Live coach</a></li>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#privacy">Privacy</a></li>
+          <li><a href="#my-diet">My Diet</a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+      </div>
+      <p class="footer-note">
+        © <span id="year">2026</span> Form AI Coach. Form feedback is for general fitness guidance only and is not medical advice.
+        Pose estimation powered by on-device BlazePose models (Google ML Kit / MediaPipe).
+      </p>
+    </div>
+  </footer>
+
+  <script type="module" src="assets/js/landing.js"></script>
+</body>
+</html>
