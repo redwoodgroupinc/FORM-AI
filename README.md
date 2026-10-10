@@ -24,9 +24,9 @@ needs a secure context, so use `http://localhost` locally and HTTPS in productio
 
 ## Compatible devices
 
-Shown at the top of the landing page, with a live **This device** check (`assets/js/compat.js`)
-that feature-detects the visitor's browser without asking for permissions. The app's start screen
-runs the same check.
+The app's start screen runs a live device check (`assets/js/compat.js`) that feature-detects
+the visitor's browser without asking for permissions, and warns before they start if something
+will hold the coach back.
 
 | | Best | Works |
 | --- | --- | --- |
