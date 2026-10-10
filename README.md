@@ -179,8 +179,11 @@ thresholds and checks as they are, and feed them ML Kit's 3D landmarks.
 - Frames are processed in memory by the on-device model and discarded. Nothing is recorded or
   uploaded.
 - The only network requests are for the page itself, Google Fonts, the MediaPipe library
-  (jsDelivr) and the pose model file (Google Cloud Storage). The browser caches them after the
-  first load.
+  (jsDelivr, or unpkg if jsDelivr can't be reached) and the pose model file (Google Cloud
+  Storage). The browser caches them after the first load.
+- The camera opens as soon as the visitor taps **Start coaching**; the first-time download
+  (about 17 MB) runs alongside it with a progress bar, and a stalled download gives up after
+  30 seconds with a clear message instead of hanging.
 - Settings and set history are stored in `localStorage` on the device only.
 
 To serve the library and model from your own origin, define this before `app.html` loads

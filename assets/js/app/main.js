@@ -27,6 +27,10 @@ const els = {
   introError: $('intro-error'),
   loading: $('loading'),
   loadingText: $('loading-text'),
+  loadingBar: $('loading-bar'),
+  loadingFill: $('loading-fill'),
+  loadingCancel: $('loading-cancel'),
+  tapPlay: $('tap-play'),
   statusDot: $('status-dot'),
   statusText: $('status-text'),
   hudExercise: $('hud-exercise'),
@@ -53,6 +57,7 @@ const els = {
   settingsDialog: $('settings-dialog'),
 };
 const ctx = els.canvas.getContext('2d');
+const ENV = probeEnvironment(window);
 
 const DEFAULT_SETTINGS = {
   voice: true, countReps: true, haptics: true, showAngle: true, model: 'lite', voiceURI: 'auto', compat: false,
@@ -60,6 +65,9 @@ const DEFAULT_SETTINGS = {
 // If the GPU engine keeps failing mid-session, switch to Compatibility (CPU) mode.
 const GPU_FAILURES_BEFORE_FALLBACK = 10;
 const CPU_FAILURES_BEFORE_STOP = 30;
+// Some GPU drivers run the model without errors but never find a person. If the GPU sees
+// nobody for this long, try the CPU engine once.
+const NO_POSE_GPU_FALLBACK_MS = 12000;
 const settings = { ...DEFAULT_SETTINGS, ...storage.get(SETTINGS_KEY, {}) };
 const voice = new VoiceCoach({
   enabled: settings.voice, countReps: settings.countReps, voiceURI: settings.voiceURI,
@@ -89,6 +97,11 @@ const session = {
   shownExerciseId: undefined,
   detectFailures: 0,
   forceCpu: false,
+  loading: null, // { key, promise } while a detector is being created
+  loadProgress: 0,
+  startToken: 0, // bumped whenever a new source starts, so stale async starts give up
+  poseSeen: false,
+  noPoseSince: null,
 };
 
 const trackingEngine = () => (settings.compat || session.forceCpu ? 'cpu' : 'auto');
@@ -121,7 +134,7 @@ function renderIntro() {
   }));
 
   // Tell people up front if this device can't run the live coach (the demo always works).
-  const result = evaluate(probeEnvironment(window));
+  const result = evaluate(ENV);
   const box = $('intro-compat');
   box.hidden = result.verdict === 'ready';
   if (box.hidden) return;
@@ -158,8 +171,16 @@ function hideError() {
   els.introError.hidden = true;
 }
 
-function showLoading(text) {
+/**
+ * Full-stage overlay. `progress` shows the download bar; `overVideo` keeps the live camera
+ * visible behind it so people can see the camera is working while the model loads.
+ */
+function showLoading(text, { progress = false, overVideo = false } = {}) {
   els.loadingText.textContent = text;
+  els.loading.classList.toggle('is-over-video', overVideo);
+  els.loadingBar.hidden = !progress;
+  els.loadingCancel.hidden = !overVideo;
+  if (progress) renderLoadProgress();
   els.loading.hidden = false;
 }
 
@@ -167,39 +188,92 @@ function hideLoading() {
   els.loading.hidden = true;
 }
 
-function describeError(error) {
-  const name = error?.name ?? '';
-  if (name === 'NotAllowedError' || name === 'SecurityError') {
-    return 'Camera access was blocked. Allow camera access for this site in your browser settings, or watch the demo instead.';
+function renderLoadProgress() {
+  const percent = Math.round(session.loadProgress * 100);
+  els.loadingFill.style.width = `${percent}%`;
+  els.loadingBar.setAttribute('aria-valuenow', String(percent));
+  if (!els.loadingBar.hidden) {
+    els.loadingText.textContent = percent >= 100 ? 'Starting the AI coach…' : `Loading the AI coach… ${percent}%`;
   }
-  if (name === 'NotFoundError' || name === 'OverconstrainedError') {
-    return 'No camera was found. Connect a camera, analyse a video file, or watch the demo.';
-  }
-  if (name === 'NotReadableError' || name === 'AbortError') {
-    return 'Your camera is busy in another app. Close it there and try again.';
-  }
-  if (error?.code === 'MODEL_LOAD') {
-    return "Couldn't load the pose model. Check your internet connection and try again. It only downloads once.";
-  }
-  return `Something went wrong: ${error?.message ?? error}`;
 }
 
-async function ensureDetector() {
+const IN_APP_MESSAGE = ENV.platform === 'ios'
+  ? 'This app\'s built-in browser can\'t use the camera. Tap the ⋯ or share menu, choose "Open in Safari" (or Chrome), and start again there.'
+  : 'This app\'s built-in browser can\'t use the camera. Tap the ⋮ menu, choose "Open in Chrome" (or your browser), and start again there.';
+
+function cameraPermissionHelp() {
+  if (ENV.platform === 'ios') {
+    return 'On iPhone or iPad, tap "aA" in the address bar, then Website Settings › Camera › Allow. Or open Settings › Apps › Safari › Camera (Settings › Safari on iOS 17) and choose Allow. Then reload this page.';
+  }
+  if (ENV.platform === 'android') {
+    return 'In Chrome, tap the icon left of the web address, then Permissions › Camera › Allow. If it is still blocked, open Android Settings › Apps › Chrome › Permissions › Camera. Then reload this page.';
+  }
+  return 'Click the camera or lock icon in the address bar and allow the camera, then reload this page. Also check Windows Settings › Privacy › Camera, or on a Mac, System Settings › Privacy & Security › Camera.';
+}
+
+function describeError(error) {
+  const name = error?.name ?? '';
+  if (error?.code === 'MODEL_LOAD') {
+    return error.reason === 'network'
+      ? "Couldn't download the AI coach. It is about 17 MB the first time, then it is saved on this device. Check your internet connection and tap Start coaching to try again."
+      : "This device couldn't start the AI coach. Open Settings, turn on Compatibility mode and try again. If it still fails, use the latest Chrome or Safari.";
+  }
+  if (ENV.inApp) return IN_APP_MESSAGE;
+  if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError') {
+    return `Camera access is blocked. ${cameraPermissionHelp()}`;
+  }
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError' || name === 'OverconstrainedError') {
+    return 'No camera was found. Connect a camera, analyse a video file, or watch the demo.';
+  }
+  if (name === 'NotReadableError' || name === 'TrackStartError' || name === 'AbortError') {
+    return 'Your camera is busy in another app or browser tab. Close it there and try again. If that doesn\'t help, restart the browser.';
+  }
+  return `Something went wrong (${name || 'error'}: ${error?.message ?? error}). Reload the page and try again.`;
+}
+
+/**
+ * Create the pose detector for the current settings. Concurrent calls share one download,
+ * and the old detector keeps running until the new one is ready.
+ */
+function ensureDetector() {
   const engine = trackingEngine();
-  if (session.detector && session.detector.model === settings.model && session.detector.engine === engine) {
-    return session.detector;
-  }
-  session.detector?.close();
-  session.detector = null;
-  try {
-    session.detector = await createPoseDetector({ model: settings.model, engine });
-  } catch (cause) {
-    console.error(cause);
-    const error = new Error('Pose model failed to load');
-    error.code = 'MODEL_LOAD';
-    throw error;
-  }
-  return session.detector;
+  const key = `${settings.model}/${engine}`;
+  if (session.detector?.key === key) return Promise.resolve(session.detector);
+  if (session.loading?.key === key) return session.loading.promise;
+
+  const load = { key, promise: null };
+  session.loading = load;
+  session.loadProgress = 0;
+  load.promise = createPoseDetector({
+    model: settings.model,
+    engine,
+    onProgress: (fraction) => {
+      if (session.loading !== load) return;
+      session.loadProgress = fraction;
+      renderLoadProgress();
+    },
+  }).then((detector) => {
+    if (session.loading !== load) {
+      // Settings changed while this one was loading; use the newer request instead.
+      detector.close();
+      return ensureDetector();
+    }
+    session.loading = null;
+    session.detector?.close();
+    detector.key = key;
+    session.detector = detector;
+    session.detectFailures = 0;
+    return detector;
+  }, (error) => {
+    if (session.loading === load) session.loading = null;
+    console.error(error);
+    if (error?.code === 'MODEL_LOAD') throw error;
+    const wrapped = new Error('Pose engine failed to start');
+    wrapped.code = 'MODEL_LOAD';
+    wrapped.reason = 'init';
+    throw wrapped;
+  });
+  return load.promise;
 }
 
 function stopStream() {
@@ -208,23 +282,53 @@ function stopStream() {
   if (els.video.srcObject) els.video.srcObject = null;
 }
 
+/** Ask for the camera, relaxing the request if the device can't meet it. */
+async function getCameraStream() {
+  const requests = [
+    { facingMode: session.facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+    { facingMode: session.facingMode },
+    true,
+  ];
+  let lastError;
+  for (const video of requests) {
+    try {
+      return await navigator.mediaDevices.getUserMedia({ audio: false, video });
+    } catch (error) {
+      lastError = error;
+      // A different resolution won't fix a permission problem.
+      if (error?.name === 'NotAllowedError' || error?.name === 'SecurityError') throw error;
+    }
+  }
+  throw lastError;
+}
+
+/** Play the video; if the browser wants a tap first (e.g. iOS Low Power Mode), ask for one. */
+function playVideo() {
+  const attempt = els.video.play();
+  if (!attempt?.then) return;
+  attempt.then(() => {
+    els.tapPlay.hidden = true;
+  }, (error) => {
+    if (error?.name === 'NotAllowedError' && session.running) els.tapPlay.hidden = false;
+  });
+}
+
 async function openCamera() {
   stopStream();
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      facingMode: session.facingMode,
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-    },
-  });
+  const stream = await getCameraStream();
   session.stream = stream;
+  const [track] = stream.getVideoTracks();
+  track?.addEventListener('ended', () => {
+    if (session.stream !== stream || !session.running) return;
+    stopSession();
+    showError('The camera stopped. Another app may have taken it, or it was disconnected. Tap Start coaching to reconnect.');
+  });
   els.video.removeAttribute('src');
   els.video.srcObject = stream;
   els.video.muted = true;
-  await els.video.play();
+  playVideo();
   // Desktop webcams don't report a facing mode; treat them like a selfie camera.
-  const facing = stream.getVideoTracks()[0]?.getSettings?.().facingMode;
+  const facing = track?.getSettings?.().facingMode;
   session.mirrored = facing ? facing === 'user' : true;
 }
 
@@ -232,40 +336,76 @@ async function startCamera() {
   hideError();
   voice.unlock();
   if (!navigator.mediaDevices?.getUserMedia) {
-    showError(window.isSecureContext
-      ? "This browser can't access the camera. Try the latest Chrome, Safari or Edge."
-      : 'The camera needs a secure connection. Open this page over https:// or on localhost.');
+    showError(ENV.inApp
+      ? IN_APP_MESSAGE
+      : window.isSecureContext
+        ? "This browser can't access the camera. Try the latest Chrome, Safari or Edge."
+        : 'The camera needs a secure connection. Open this page with https:// at the start of the address.');
     return;
   }
+  const token = ++session.startToken;
+  // Download the model while the permission prompt is open; it is about 17 MB the first time.
+  const detectorReady = ensureDetector();
+  detectorReady.catch(() => {});
+  showLoading('Waiting for camera permission…');
   try {
-    showLoading('Loading on-device pose model…');
-    await ensureDetector();
-    showLoading('Waiting for camera permission…');
     await openCamera();
-    hideLoading();
-    beginSession('camera');
   } catch (error) {
+    if (token !== session.startToken) return;
     hideLoading();
     stopStream();
     showError(describeError(error));
+    return;
   }
+  if (token !== session.startToken) {
+    stopStream();
+    return;
+  }
+  // Show the camera straight away, with the download progress on top until tracking starts.
+  beginSession('camera');
+  if (!session.detector) {
+    showLoading('Loading the AI coach…', { progress: true, overVideo: true });
+    try {
+      await detectorReady;
+    } catch (error) {
+      if (token !== session.startToken) return;
+      stopSession();
+      hideLoading();
+      showError(describeError(error));
+      return;
+    }
+    if (token !== session.startToken || session.mode !== 'camera') return;
+  }
+  hideLoading();
+  greet('camera');
+}
+
+function cancelStart() {
+  session.startToken += 1;
+  hideLoading();
+  stopSession();
 }
 
 function startDemo() {
+  session.startToken += 1;
   hideError();
+  hideLoading();
   voice.unlock();
   stopStream();
   session.mirrored = false;
   beginSession('demo');
+  greet('demo');
 }
 
 async function startFile(file) {
   if (!file) return;
+  const token = ++session.startToken;
   hideError();
   voice.unlock();
   try {
-    showLoading('Loading on-device pose model…');
+    showLoading('Loading the AI coach…', { progress: !session.detector });
     await ensureDetector();
+    if (token !== session.startToken) return;
     stopStream();
     if (session.fileUrl) URL.revokeObjectURL(session.fileUrl);
     session.fileUrl = URL.createObjectURL(file);
@@ -275,13 +415,24 @@ async function startFile(file) {
     els.video.muted = true;
     els.video.src = session.fileUrl;
     await els.video.play();
+    if (token !== session.startToken) return;
     session.mirrored = false;
     hideLoading();
     beginSession('file');
+    greet('file');
   } catch (error) {
+    if (token !== session.startToken) return;
     hideLoading();
     showError(error?.code === 'MODEL_LOAD' ? describeError(error) : "That video couldn't be played. Try an MP4 or MOV file.");
   }
+}
+
+function greet(mode) {
+  voice.say(mode === 'demo'
+    ? "Here's a demo. Watch how I recognise each exercise."
+    : "I'm watching. Start any exercise when you're ready.", {
+    key: 'start', priority: PRIORITY.info, cooldownMs: 0,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -296,7 +447,10 @@ function beginSession(mode) {
   session.lastVideoTime = -1;
   session.lostSince = null;
   session.cleanStreak = 0;
+  session.poseSeen = false;
+  session.noPoseSince = null;
   session.fps = { frames: 0, since: performance.now(), value: 0 };
+  els.tapPlay.hidden = true;
 
   els.stage.dataset.mode = mode;
   els.stage.classList.toggle('is-mirrored', session.mirrored);
@@ -308,11 +462,6 @@ function beginSession(mode) {
   resetWorkoutUI();
   sizeCanvas();
   requestWakeLock();
-  voice.say(mode === 'demo'
-    ? "Here's a demo. Watch how I recognise each exercise."
-    : "I'm watching. Start any exercise when you're ready.", {
-    key: 'start', priority: PRIORITY.info, cooldownMs: 0,
-  });
 
   cancelAnimationFrame(session.rafId);
   session.rafId = requestAnimationFrame(tick);
@@ -337,6 +486,8 @@ function stopSession() {
   els.stage.dataset.mode = 'idle';
   els.stage.classList.remove('is-running', 'is-mirrored');
   els.intro.hidden = false;
+  els.tapPlay.hidden = true;
+  hideLoading();
   ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
   hideCue();
 }
@@ -374,7 +525,16 @@ function setPauseButton(paused) {
 }
 
 async function flipCamera() {
-  if (session.mode !== 'camera') return;
+  if (session.mode !== 'camera' || session.flipping) return;
+  session.flipping = true;
+  try {
+    await switchCamera();
+  } finally {
+    session.flipping = false;
+  }
+}
+
+async function switchCamera() {
   session.facingMode = session.facingMode === 'user' ? 'environment' : 'user';
   try {
     await openCamera();
@@ -446,9 +606,16 @@ function tick(now) {
   } else {
     const video = els.video;
     // iOS can pause the camera feed when speech starts; keep it running.
-    if (session.mode === 'camera' && video.paused) video.play().catch(() => {});
-    // The detector is briefly missing while the tracking model is being switched.
-    if (!session.detector || video.readyState < 2 || video.currentTime === session.lastVideoTime) return;
+    if (session.mode === 'camera' && video.paused && els.tapPlay.hidden && now - (session.playTriedAt ?? 0) > 500) {
+      session.playTriedAt = now;
+      playVideo();
+    }
+    if (!session.detector) {
+      // The model is still downloading, or the engine is being switched.
+      setStatus('idle', 'Loading the AI coach…');
+      return;
+    }
+    if (video.readyState < 2 || video.currentTime === session.lastVideoTime) return;
     session.lastVideoTime = video.currentTime;
     if (els.canvas.width !== video.videoWidth || els.canvas.height !== video.videoHeight) sizeCanvas();
     try {
@@ -459,6 +626,7 @@ function tick(now) {
       handleDetectFailure();
       return;
     }
+    watchForSilentGpu(pose, now);
   }
 
   const result = coach.update(pose, time, { aspect: els.canvas.width / els.canvas.height });
@@ -468,20 +636,41 @@ function tick(now) {
   countFps(now);
 }
 
+/** Switch from the GPU to the CPU engine for the rest of this visit. */
+async function fallBackToCpu(message) {
+  session.forceCpu = true;
+  session.detectFailures = 0;
+  session.detector?.close();
+  session.detector = null;
+  showCue(message, 'warn', performance.now(), 2600);
+  try {
+    await ensureDetector();
+  } catch (error) {
+    stopSession();
+    showError(describeError(error));
+  }
+}
+
+/** If the GPU engine runs but never finds anyone, its driver is probably broken: try the CPU. */
+function watchForSilentGpu(pose, now) {
+  if (pose) {
+    session.poseSeen = true;
+    return;
+  }
+  if (session.poseSeen || session.mode !== 'camera' || session.detector?.delegate !== 'GPU') return;
+  if (session.noPoseSince === null) session.noPoseSince = now;
+  if (now - session.noPoseSince > NO_POSE_GPU_FALLBACK_MS) {
+    session.noPoseSince = null;
+    fallBackToCpu('No one detected yet. Trying Compatibility mode');
+  }
+}
+
 /** Recover from a failing pose engine: GPU → Compatibility mode → ask for a reload. */
 async function handleDetectFailure() {
   session.detectFailures += 1;
   const onGpu = session.detector?.delegate === 'GPU';
   if (onGpu && session.detectFailures >= GPU_FAILURES_BEFORE_FALLBACK) {
-    session.detectFailures = 0;
-    session.forceCpu = true;
-    showCue('Switching to compatibility mode', 'warn', performance.now(), 2200);
-    try {
-      await ensureDetector();
-    } catch (error) {
-      stopSession();
-      showError(describeError(error));
-    }
+    await fallBackToCpu('Switching to Compatibility mode');
   } else if (!onGpu && session.detectFailures >= CPU_FAILURES_BEFORE_STOP) {
     stopSession();
     showError('Tracking stopped unexpectedly. Reload the page and try again. If it keeps happening, turn on Compatibility mode in Settings.');
@@ -912,35 +1101,30 @@ function bindSettings() {
   voice.onvoiceschange = renderVoiceOptions;
   renderVoiceOptions();
 
-  async function switchEngine() {
+  /** Load the detector for the new settings; the current one keeps tracking until it is ready. */
+  async function switchDetector(text) {
     if (!session.running || session.mode === 'demo') return;
-    showLoading('Switching tracking engine…');
+    const token = session.startToken;
+    showLoading(text, { progress: true });
     try {
       await ensureDetector();
     } catch (error) {
+      if (token !== session.startToken) return;
       stopSession();
       showError(describeError(error));
-    } finally {
-      hideLoading();
+      return;
     }
+    if (token === session.startToken && session.running) hideLoading();
   }
+  const switchEngine = () => switchDetector('Switching tracking engine…');
 
   for (const radio of document.querySelectorAll('input[name="model"]')) {
     radio.checked = radio.value === settings.model;
-    radio.addEventListener('change', async () => {
+    radio.addEventListener('change', () => {
       if (!radio.checked) return;
       settings.model = radio.value;
       saveSettings();
-      if (!session.running || session.mode === 'demo') return;
-      showLoading('Switching tracking model…');
-      try {
-        await ensureDetector();
-      } catch (error) {
-        stopSession();
-        showError(describeError(error));
-      } finally {
-        hideLoading();
-      }
+      switchDetector('Loading the tracking model…');
     });
   }
 
@@ -960,6 +1144,8 @@ function bindSettings() {
 
 $('start-camera').addEventListener('click', startCamera);
 $('start-demo').addEventListener('click', startDemo);
+els.loadingCancel.addEventListener('click', cancelStart);
+els.tapPlay.addEventListener('click', playVideo);
 $('video-file').addEventListener('change', (event) => {
   startFile(event.target.files?.[0]);
   event.target.value = '';

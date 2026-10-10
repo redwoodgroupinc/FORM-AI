@@ -523,6 +523,46 @@ body.app {
   display: none;
 }
 
+/* While the model downloads over the live camera, keep the camera visible. */
+.stage-loading.is-over-video {
+  background: rgba(7, 8, 10, 0.6);
+}
+
+.load-bar {
+  width: min(260px, 70vw);
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.load-bar[hidden] + .load-note {
+  display: none;
+}
+
+.load-bar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.load-note {
+  margin-top: -8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.stage-tap {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .spinner {
   width: 44px;
   height: 44px;

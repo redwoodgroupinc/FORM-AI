@@ -117,9 +117,16 @@
           </div>
         </div>
 
+        <button class="btn btn-primary stage-tap" id="tap-play" type="button" hidden>
+          <svg aria-hidden="true"><use href="#i-camera"/></svg> Tap to start the camera
+        </button>
+
         <div class="stage-loading" id="loading" hidden>
           <div class="spinner" aria-hidden="true"></div>
-          <p id="loading-text">Loading on-device pose model…</p>
+          <p id="loading-text" role="status">Loading the AI coach…</p>
+          <div class="load-bar" id="loading-bar" role="progressbar" aria-label="Download progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden><i id="loading-fill"></i></div>
+          <p class="load-note">First time only: about 17 MB, then it's saved on this device.</p>
+          <button class="btn" id="loading-cancel" type="button" hidden>Cancel</button>
         </div>
       </div>
     </section>
