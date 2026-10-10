@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { evaluate, probeEnvironment } from '../assets/js/compat.js';
+import { evaluate, probeEnvironment, gpuNeedsCompatibility } from '../assets/js/compat.js';
 
 const READY = {
-  secureContext: true, camera: true, wasm: true, wasmSimd: true, webgl2: true, speech: true,
+  secureContext: true, camera: true, wasm: true, wasmSimd: true, webgl: true, webgl2: true, gpuIssue: false, speech: true,
   modern: true, cores: 8, memoryGb: 8, inApp: false, platform: 'ios',
 };
 const statusOf = (result, id) => result.items.find((i) => i.id === id).status;
@@ -21,6 +21,27 @@ test('missing GPU, SIMD or speech still works, with warnings', () => {
     assert.equal(result.verdict, 'limited', missing);
   }
   assert.equal(statusOf(evaluate({ ...READY, webgl2: false }), 'gpu'), 'warn');
+});
+
+test('graphics: none blocks, WebGL 1 or a known GPU bug only warns', () => {
+  const none = evaluate({ ...READY, webgl: false, webgl2: false });
+  assert.equal(none.verdict, 'unsupported');
+  assert.match(none.items.find((i) => i.id === 'gpu').detail, /Lockdown Mode/);
+  assert.match(evaluate({ ...READY, webgl: false, webgl2: false, platform: 'desktop' }).items.find((i) => i.id === 'gpu').detail, /acceleration/);
+  assert.equal(evaluate({ ...READY, webgl2: false }).verdict, 'limited');
+  const buggy = evaluate({ ...READY, gpuIssue: true, platform: 'android' });
+  assert.equal(buggy.verdict, 'limited');
+  assert.match(buggy.items.find((i) => i.id === 'gpu').detail, /Compatibility mode/);
+});
+
+test('recognises the GPUs with the known MediaPipe bug', () => {
+  assert.equal(gpuNeedsCompatibility('Adreno (TM) 830'), true);
+  assert.equal(gpuNeedsCompatibility('ANGLE (Qualcomm, Adreno (TM) 840, OpenGL ES 3.2)'), true);
+  assert.equal(gpuNeedsCompatibility('Adreno (TM) 735'), true);
+  assert.equal(gpuNeedsCompatibility('Adreno (TM) 750'), false);
+  assert.equal(gpuNeedsCompatibility('Mali-G78'), false);
+  assert.equal(gpuNeedsCompatibility('Apple GPU'), false);
+  assert.equal(gpuNeedsCompatibility(null), false);
 });
 
 test('no camera API or no WebAssembly means the live coach cannot run', () => {

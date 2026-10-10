@@ -4,6 +4,8 @@
 // Self-hosting: set window.FORM_AI_CONFIG = { mediapipeBase, models: { lite, full } }
 // before this module loads to serve the library and models from your own origin.
 
+import { gpuNeedsCompatibility } from '../compat.js';
+
 export const MEDIAPIPE_VERSION = '0.10.35';
 
 const config = (typeof window !== 'undefined' && window.FORM_AI_CONFIG) || {};
@@ -42,18 +44,22 @@ function landmarkerOptions(model, delegate) {
 }
 
 /**
- * Create a detector. Tries the GPU delegate first and falls back to CPU.
- * @returns {Promise<{model: string, delegate: string, detect: Function, close: Function}>}
+ * Create a detector.
+ * `engine: 'auto'` uses the GPU, except on chips where MediaPipe's GPU path is known to
+ * break (see compat.js), and falls back to the CPU if the GPU can't start.
+ * `engine: 'cpu'` is Compatibility mode: slower, but avoids GPU driver problems.
+ * @returns {Promise<{model: string, delegate: string, engine: string, detect: Function, close: Function}>}
  */
-export async function createPoseDetector({ model = 'lite' } = {}) {
+export async function createPoseDetector({ model = 'lite', engine = 'auto' } = {}) {
   const fileset = await loadFileset();
   const { PoseLandmarker } = visionModule;
-  let delegate = 'GPU';
+  let delegate = engine === 'cpu' || gpuNeedsCompatibility() ? 'CPU' : 'GPU';
   let landmarker;
   try {
-    landmarker = await PoseLandmarker.createFromOptions(fileset, landmarkerOptions(model, 'GPU'));
-  } catch (gpuError) {
-    console.warn('GPU delegate unavailable, falling back to CPU', gpuError);
+    landmarker = await PoseLandmarker.createFromOptions(fileset, landmarkerOptions(model, delegate));
+  } catch (error) {
+    if (delegate === 'CPU') throw error;
+    console.warn('GPU delegate unavailable, falling back to CPU', error);
     delegate = 'CPU';
     landmarker = await PoseLandmarker.createFromOptions(fileset, landmarkerOptions(model, 'CPU'));
   }
@@ -61,6 +67,7 @@ export async function createPoseDetector({ model = 'lite' } = {}) {
   let lastTimestamp = -1;
   return {
     model,
+    engine,
     delegate,
     /** Detect the pose in a video frame. Returns null when nobody is in view. */
     detect(source, timeMs) {

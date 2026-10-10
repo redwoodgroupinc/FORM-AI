@@ -22,6 +22,31 @@ npm test           # engine unit tests (Node 20+)
 No build step and no runtime dependencies: it is plain HTML, CSS and ES modules. Camera access
 needs a secure context, so use `http://localhost` locally and HTTPS in production.
 
+## Compatible devices
+
+Shown at the top of the landing page, with a live **This device** check (`assets/js/compat.js`)
+that feature-detects the visitor's browser without asking for permissions. The app's start screen
+runs the same check.
+
+| | Best | Works |
+| --- | --- | --- |
+| **iPhone / iPad** (iOS 17+) | iPhone 13 and newer; iPad Pro M1+, iPad Air 5+, iPad mini 6+, iPad (A16) | iPhone XS, XR, 11, 12, SE 2; iPad 8–10, Air 3/4, mini 5, 2018/2020 iPad Pros |
+| **Android** (10+, current Chrome) | Pixel 6–9, Galaxy S21–S24, Snapdragon 888 / 8 Gen 1–3, Tensor | Galaxy A54/A55/A56 and similar 2022+ mid-range; other phones with 4 GB+ RAM, slower |
+| **Laptops** (Windows 10/11, macOS 13+, ChromeOS, Linux) | Apple silicon; Core i5 11th gen / Ryzen 5 5000+; any dGPU; Chromebook Plus | Core i3/i5 8th gen / Ryzen 3 3000+, 8 GB RAM, graphics acceleration on |
+
+Minimum browsers: Safari 17, Chrome/Edge 108, Samsung Internet 21, Firefox 101 (svh units set the
+floor; MediaPipe's fast paths need Safari 17). Not supported: iPhone 8/X and older (stuck on
+iOS 16), Celeron/Pentium/Atom laptops, VMs without a GPU, in-app browsers.
+
+**Known engine bug.** MediaPipe's web GPU path stalls on Snapdragon 8 Elite / 8 Elite Gen 5 / 8s Gen 3
+(Adreno 830/840/735: Galaxy S25, OnePlus 13, Xiaomi 15), as reported in
+google-ai-edge/mediapipe#5908 and #5867. The coach detects these GPUs and uses the CPU delegate
+("Compatibility mode"). It also switches automatically if the GPU engine keeps throwing errors
+mid-session. Users can force it in Settings.
+
+The tiers come from OS support lists and chip generations, not device testing. Re-check them if
+`@mediapipe/tasks-vision` is upgraded from 0.10.35.
+
 ## Deploy
 
 Any static host works (GitHub Pages, Netlify, Vercel, Cloudflare Pages, S3). For GitHub Pages:

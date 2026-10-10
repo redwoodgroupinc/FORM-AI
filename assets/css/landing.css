@@ -1273,6 +1273,8 @@
 
 .tier dt {
   justify-self: start;
+  text-align: center;
+  line-height: 1.25;
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--surface-3);
@@ -1291,6 +1293,17 @@
 .tier.is-slow dt {
   background: var(--warn-soft);
   color: var(--warn);
+}
+
+.tier.is-no dt {
+  background: var(--danger-soft);
+  color: #ffbcb7;
+}
+
+.browser-note {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 .tier dd {

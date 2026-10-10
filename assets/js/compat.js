@@ -9,6 +9,28 @@ const WASM_SIMD = [0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1,
 // In-app browsers (social apps) often block the camera even when the API exists.
 const IN_APP = /FBAN|FBAV|FB_IAB|Instagram|Line\/|TikTok|musical_ly|Snapchat|Twitter|LinkedInApp|Pinterest|WhatsApp|GSA\//i;
 
+// MediaPipe's web GPU path stalls after a few frames on these Adreno GPUs (Snapdragon
+// 8 Elite, 8 Elite Gen 5, 8s Gen 3: e.g. Galaxy S25, OnePlus 13, Xiaomi 15). Open upstream:
+// google-ai-edge/mediapipe#5908 and #5867. The CPU delegate works.
+const GPU_ISSUE = /Adreno \(TM\) (830|840|735)\b/;
+
+/** The GPU's renderer string, when the browser exposes it (e.g. "Adreno (TM) 830"). */
+export function gpuRenderer(doc = typeof document === 'undefined' ? null : document) {
+  try {
+    const gl = doc?.createElement('canvas').getContext('webgl2') ?? doc?.createElement('canvas').getContext('webgl');
+    if (!gl) return null;
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    return String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? '') || null;
+  } catch {
+    return null;
+  }
+}
+
+/** True on GPUs where the pose engine must run in Compatibility (CPU) mode. */
+export function gpuNeedsCompatibility(renderer = gpuRenderer()) {
+  return Boolean(renderer && GPU_ISSUE.test(renderer));
+}
+
 function validWasm(bytes) {
   try {
     return typeof WebAssembly === 'object' && WebAssembly.validate(new Uint8Array(bytes));
@@ -22,17 +44,22 @@ export function probeEnvironment(win = window) {
   const nav = win.navigator ?? {};
   const ua = String(nav.userAgent ?? '');
   let webgl2 = false;
+  let webgl = false;
   try {
     webgl2 = Boolean(win.document?.createElement('canvas').getContext('webgl2'));
+    webgl = webgl2 || Boolean(win.document?.createElement('canvas').getContext('webgl'));
   } catch {
     webgl2 = false;
   }
+  const renderer = webgl ? gpuRenderer(win.document) : null;
   return {
     secureContext: Boolean(win.isSecureContext),
     camera: typeof nav.mediaDevices?.getUserMedia === 'function',
     wasm: validWasm(WASM_EMPTY),
     wasmSimd: validWasm(WASM_SIMD),
+    webgl,
     webgl2,
+    gpuIssue: gpuNeedsCompatibility(renderer),
     speech: 'speechSynthesis' in win,
     modern: typeof win.HTMLDialogElement === 'function' && Boolean(win.CSS?.supports?.('height', '100svh')),
     cores: Number.isFinite(nav.hardwareConcurrency) ? nav.hardwareConcurrency : null,
@@ -83,9 +110,18 @@ export function evaluate(env) {
     add('ai', 'On-device AI', 'pass', 'Supported');
   }
 
-  add('gpu', 'GPU acceleration', env.webgl2 ? 'pass' : 'warn', env.webgl2
-    ? 'Available (WebGL 2)'
-    : 'Not available. Tracking falls back to the processor, at a lower frame rate.');
+  // The pose engine needs WebGL even in Compatibility mode (it preprocesses frames on the GPU).
+  if (env.webgl === false || (env.webgl === undefined && !env.webgl2)) {
+    add('gpu', 'Graphics', 'fail', env.platform === 'ios'
+      ? 'Graphics (WebGL) is off. If Lockdown Mode is on, add this site as an exception.'
+      : 'Graphics (WebGL) is off. Turn on hardware or graphics acceleration in your browser settings.');
+  } else if (!env.webgl2) {
+    add('gpu', 'Graphics', 'warn', 'Only basic graphics support. Tracking may be slow or may not start.');
+  } else if (env.gpuIssue) {
+    add('gpu', 'Graphics', 'warn', "This phone's chip has a known GPU bug in the pose engine, so the coach runs in Compatibility mode. It's slower, but reliable.");
+  } else {
+    add('gpu', 'Graphics', 'pass', 'GPU acceleration available');
+  }
 
   add('voice', 'Her voice', env.speech ? 'pass' : 'warn', env.speech
     ? 'Spoken cues supported'

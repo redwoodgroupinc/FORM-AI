@@ -55,8 +55,11 @@ const els = {
 const ctx = els.canvas.getContext('2d');
 
 const DEFAULT_SETTINGS = {
-  voice: true, countReps: true, haptics: true, showAngle: true, model: 'lite', voiceURI: 'auto',
+  voice: true, countReps: true, haptics: true, showAngle: true, model: 'lite', voiceURI: 'auto', compat: false,
 };
+// If the GPU engine keeps failing mid-session, switch to Compatibility (CPU) mode.
+const GPU_FAILURES_BEFORE_FALLBACK = 10;
+const CPU_FAILURES_BEFORE_STOP = 30;
 const settings = { ...DEFAULT_SETTINGS, ...storage.get(SETTINGS_KEY, {}) };
 const voice = new VoiceCoach({
   enabled: settings.voice, countReps: settings.countReps, voiceURI: settings.voiceURI,
@@ -84,7 +87,11 @@ const session = {
   fileUrl: null,
   lastFile: null,
   shownExerciseId: undefined,
+  detectFailures: 0,
+  forceCpu: false,
 };
+
+const trackingEngine = () => (settings.compat || session.forceCpu ? 'cpu' : 'auto');
 
 const plural = (n, exercise) => `${n} ${(n === 1 ? exercise.name : exercise.plural).toLowerCase()}`;
 
@@ -178,11 +185,14 @@ function describeError(error) {
 }
 
 async function ensureDetector() {
-  if (session.detector && session.detector.model === settings.model) return session.detector;
+  const engine = trackingEngine();
+  if (session.detector && session.detector.model === settings.model && session.detector.engine === engine) {
+    return session.detector;
+  }
   session.detector?.close();
   session.detector = null;
   try {
-    session.detector = await createPoseDetector({ model: settings.model });
+    session.detector = await createPoseDetector({ model: settings.model, engine });
   } catch (cause) {
     console.error(cause);
     const error = new Error('Pose model failed to load');
@@ -435,14 +445,18 @@ function tick(now) {
     pose = programFrame(time, DEMO_PROGRAM, { aspect, ...DEMO_FRAMING }).pose;
   } else {
     const video = els.video;
+    // iOS can pause the camera feed when speech starts; keep it running.
+    if (session.mode === 'camera' && video.paused) video.play().catch(() => {});
     // The detector is briefly missing while the tracking model is being switched.
     if (!session.detector || video.readyState < 2 || video.currentTime === session.lastVideoTime) return;
     session.lastVideoTime = video.currentTime;
     if (els.canvas.width !== video.videoWidth || els.canvas.height !== video.videoHeight) sizeCanvas();
     try {
       pose = session.detector.detect(video, now);
+      session.detectFailures = 0;
     } catch (error) {
       console.error(error);
+      handleDetectFailure();
       return;
     }
   }
@@ -452,6 +466,26 @@ function tick(now) {
   handleEvents(result.events, now);
   updateHud(result, now);
   countFps(now);
+}
+
+/** Recover from a failing pose engine: GPU → Compatibility mode → ask for a reload. */
+async function handleDetectFailure() {
+  session.detectFailures += 1;
+  const onGpu = session.detector?.delegate === 'GPU';
+  if (onGpu && session.detectFailures >= GPU_FAILURES_BEFORE_FALLBACK) {
+    session.detectFailures = 0;
+    session.forceCpu = true;
+    showCue('Switching to compatibility mode', 'warn', performance.now(), 2200);
+    try {
+      await ensureDetector();
+    } catch (error) {
+      stopSession();
+      showError(describeError(error));
+    }
+  } else if (!onGpu && session.detectFailures >= CPU_FAILURES_BEFORE_STOP) {
+    stopSession();
+    showError('Tracking stopped unexpectedly. Reload the page and try again. If it keeps happening, turn on Compatibility mode in Settings.');
+  }
 }
 
 function draw(pose, result, now) {
@@ -848,12 +882,14 @@ function bindSettings() {
     ['set-count', 'countReps'],
     ['set-haptics', 'haptics'],
     ['set-angle', 'showAngle'],
+    ['set-compat', 'compat'],
   ];
   for (const [id, key] of bindings) {
     const input = $(id);
     input.checked = Boolean(settings[key]);
     input.addEventListener('change', () => {
       settings[key] = input.checked;
+      if (key === 'compat') switchEngine();
       voice.enabled = settings.voice;
       voice.countReps = settings.countReps;
       if (!settings.voice) voice.cancel();
@@ -875,6 +911,19 @@ function bindSettings() {
   });
   voice.onvoiceschange = renderVoiceOptions;
   renderVoiceOptions();
+
+  async function switchEngine() {
+    if (!session.running || session.mode === 'demo') return;
+    showLoading('Switching tracking engine…');
+    try {
+      await ensureDetector();
+    } catch (error) {
+      stopSession();
+      showError(describeError(error));
+    } finally {
+      hideLoading();
+    }
+  }
 
   for (const radio of document.querySelectorAll('input[name="model"]')) {
     radio.checked = radio.value === settings.model;
