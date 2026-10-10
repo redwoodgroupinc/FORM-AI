@@ -373,7 +373,7 @@ p {
   display: none;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1040px) {
   .nav-links {
     position: absolute;
     top: 68px;
@@ -477,4 +477,72 @@ p {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+.text-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Device check list (landing page and app) ---------- */
+
+.compat-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compat-item {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: 8px 0 8px 30px;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.compat-item:first-child {
+  border-top: 0;
+}
+
+.compat-item::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.compat-item.is-warn::before {
+  content: '!';
+  background: var(--warn);
+  color: #1b1200;
+}
+
+.compat-item.is-fail::before {
+  content: '×';
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.compat-item strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.compat-item span {
+  color: var(--muted);
 }

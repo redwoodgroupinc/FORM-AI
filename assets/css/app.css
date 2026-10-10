@@ -413,6 +413,34 @@ body.app {
   background: var(--accent);
 }
 
+.intro-compat {
+  margin-top: 20px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--warn-soft);
+  border: 1px solid rgba(255, 181, 71, 0.4);
+  text-align: left;
+  font-size: 0.92rem;
+}
+
+.intro-compat[hidden] {
+  display: none;
+}
+
+.intro-compat.is-unsupported {
+  background: var(--danger-soft);
+  border-color: rgba(255, 90, 82, 0.4);
+}
+
+.intro-compat > p {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.intro-compat .compat-list {
+  margin: 8px 0 10px;
+}
+
 .intro-actions {
   display: flex;
   flex-wrap: wrap;

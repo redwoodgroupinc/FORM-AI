@@ -6,12 +6,14 @@
 import { AutoCoach } from './engine/index.js';
 import { programFrame, programDuration, HERO_PROGRAM } from './demo/synthetic.js';
 import { drawSkeleton, faultJointsFor } from './render/skeleton.js';
+import { probeEnvironment, evaluate, renderCheck } from './compat.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 setupNav();
 setupReveal();
 setupHero();
+setupDeviceCheck();
 
 const year = document.getElementById('year');
 if (year) year.textContent = String(new Date().getFullYear());
@@ -198,4 +200,18 @@ function setupHero() {
     if (document.hidden) stop();
     else if (inView) start();
   });
+}
+
+/** "This device" card in the compatible-devices section. */
+function setupDeviceCheck() {
+  const card = document.getElementById('compat-card');
+  if (!card) return;
+  const result = evaluate(probeEnvironment(window));
+  card.dataset.verdict = result.verdict;
+  document.getElementById('compat-badge').textContent = {
+    ready: 'Ready', limited: 'Works, with limits', unsupported: 'Not supported',
+  }[result.verdict];
+  document.getElementById('compat-summary').textContent = result.summary;
+  renderCheck(document.getElementById('compat-list'), result);
+  document.getElementById('compat-cta').hidden = result.verdict === 'unsupported';
 }

@@ -7,6 +7,7 @@ import { drawSkeleton, faultJointsFor } from '../render/skeleton.js';
 import { createPoseDetector } from './pose-detector.js';
 import { VoiceCoach, PRIORITY } from './voice.js';
 import { storage } from './storage.js';
+import { probeEnvironment, evaluate, renderCheck } from '../compat.js';
 
 const SETTINGS_KEY = 'formai.settings.v1';
 const HISTORY_KEY = 'formai.history.v1';
@@ -111,6 +112,17 @@ function renderIntro() {
     li.textContent = EXERCISES[id].name;
     return li;
   }));
+
+  // Tell people up front if this device can't run the live coach (the demo always works).
+  const result = evaluate(probeEnvironment(window));
+  const box = $('intro-compat');
+  box.hidden = result.verdict === 'ready';
+  if (box.hidden) return;
+  box.classList.toggle('is-unsupported', result.verdict === 'unsupported');
+  $('intro-compat-summary').textContent = result.verdict === 'unsupported'
+    ? "This device can't run the live coach yet. You can still watch the demo."
+    : result.summary;
+  renderCheck($('intro-compat-list'), { ...result, items: result.items.filter((i) => i.status !== 'pass') });
 }
 
 /** Panel card: what she checks for the current exercise, or what she can recognise. */
