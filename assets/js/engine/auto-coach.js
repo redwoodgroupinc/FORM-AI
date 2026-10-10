@@ -16,6 +16,21 @@ import { frameFeatures, classifySpan } from './classifier.js';
 const HISTORY_MS = 20000;
 /** A rest longer than this closes the set, so the next rep starts a new one. */
 export const SET_BREAK_MS = 30000;
+/**
+ * Hysteresis between exercises. The exercise being coached keeps a rep unless another
+ * exercise scores clearly better, so one borderline rep can't split a set.
+ */
+const KEEP_LIVE_MIN = 0.25;
+const SWITCH_MARGIN = 0.3;
+/** A rep that names or switches the exercise must take at least this share of minRepMs. */
+const SWITCH_MIN_TEMPO = 0.8;
+/** A mid-rep fault is only spoken once the movement is clearly the coached exercise. */
+const CONFIRM_FAULT_CONFIDENCE = 0.8;
+/**
+ * Half reps must last this long. Pose jitter while standing still can make a coach
+ * "leave and return" in a few frames; a real half rep takes most of a second.
+ */
+const PARTIAL_MIN_MS = 700;
 
 export const HINTS = Object.freeze({
   noPose: 'Step into the frame',
@@ -97,7 +112,8 @@ export class AutoCoach {
     while (this.history.length && this.history[0].t < cutoff) this.history.shift();
     for (const [key, t] of this.announced) if (t < cutoff) this.announced.delete(key);
 
-    if (this.current && timeMs - this.current.lastActivityAt > SET_BREAK_MS) {
+    const liveCoach = this.coaches.get(this.liveExerciseId);
+    if (this.current && !liveCoach?.currentRep && timeMs - this.current.lastActivityAt > SET_BREAK_MS) {
       this.closeSet(events, 'rest');
     }
 
@@ -126,6 +142,32 @@ export class AutoCoach {
     return classifySpan(span);
   }
 
+  /** The best-scoring exercise for a span, even below the recognition threshold. */
+  static best(scores) {
+    let id = null;
+    let score = 0;
+    for (const [key, value] of Object.entries(scores)) {
+      if (value > score) {
+        id = key;
+        score = value;
+      }
+    }
+    return { id, score };
+  }
+
+  /** Should a rep that FormCoach `id` just completed count? See KEEP_LIVE_MIN. */
+  acceptsRep(id, verdict, rep) {
+    const { scores } = verdict;
+    const live = this.liveExerciseId;
+    const top = AutoCoach.best(scores);
+    if (id === live) return scores[id] >= KEEP_LIVE_MIN && top.score - scores[id] < SWITCH_MARGIN;
+    if (verdict.exerciseId !== id) return false;
+    // Naming or switching exercise takes a controlled rep: a quick flick of jitter
+    // (e.g. noisy elbows during squats looking like a curl) must not do it.
+    if (rep.durationMs < EXERCISES[id].minRepMs * SWITCH_MIN_TEMPO) return false;
+    return live === null || scores[id] - scores[live] >= SWITCH_MARGIN;
+  }
+
   handle(id, event, timeMs, events) {
     const coach = this.coaches.get(id);
     if (event.type === 'fault') {
@@ -137,16 +179,21 @@ export class AutoCoach {
     }
 
     if (event.type === 'rep') {
-      if (this.classify(event.rep.startedAt, event.rep.endedAt).exerciseId === id) {
+      if (this.acceptsRep(id, this.classify(event.rep.startedAt, event.rep.endedAt), event.rep)) {
         this.acceptRep(id, event.rep, timeMs, events);
       }
       return;
     }
 
     if (event.type === 'partial') {
-      // A half rep never switches exercise; it only coaches the current one.
+      // A half rep has less movement than a full one, so it rarely meets the full
+      // recognition threshold. For the coached exercise it counts unless the movement
+      // looks more like something else. Only full reps name or switch the exercise:
+      // half-rep spans are too short to tell real movement from jitter reliably.
       if (id !== this.liveExerciseId) return;
-      if (this.classify(event.startedAt, event.endedAt).exerciseId !== id) return;
+      if (event.endedAt - event.startedAt < PARTIAL_MIN_MS) return;
+      const top = AutoCoach.best(this.classify(event.startedAt, event.endedAt).scores);
+      if (top.id !== null && top.id !== id) return;
       const set = this.openSet(id, timeMs, events);
       set.partialReps += 1;
       set.lastActivityAt = timeMs;
@@ -164,14 +211,15 @@ export class AutoCoach {
     this.pending = this.pending.filter((p) => {
       if (this.coaches.get(p.id).currentRep?.startedAt !== p.repStartedAt) return false;
       const spanKey = `${p.id}@${p.repStartedAt}`;
-      if (!verdicts.has(spanKey)) verdicts.set(spanKey, this.classify(p.repStartedAt, timeMs).exerciseId);
+      if (!verdicts.has(spanKey)) verdicts.set(spanKey, this.classify(p.repStartedAt, timeMs));
       const verdict = verdicts.get(spanKey);
-      if (verdict === p.id) {
+      if (verdict.exerciseId === p.id && verdict.confidence >= CONFIRM_FAULT_CONFIDENCE) {
         this.announced.set(`${spanKey}:${p.check.id}`, timeMs);
         events.push({ type: 'fault', check: p.check, exerciseId: p.id });
         return false;
       }
-      return verdict === null;
+      // Keep waiting while it's this exercise but not yet certain; drop it if it's another.
+      return verdict.exerciseId === null || verdict.exerciseId === p.id;
     });
   }
 

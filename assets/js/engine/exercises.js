@@ -245,8 +245,11 @@ const lunge = {
       angle: jointAngle(...LEG(SIDES[side]).map((i) => points[i])),
     }));
     const front = legs.reduce((a, b) => (b.angle < a.angle ? b : a));
+    // Both knees bend in a lunge. Averaging them cancels pose jitter, whereas taking the
+    // smaller angle is biased low by noise and can stop reps from returning to the top.
+    const value = legs.reduce((sum, leg) => sum + leg.angle, 0) / legs.length;
     return {
-      value: front.angle,
+      value,
       arc: LEG(SIDES[front.side]),
       metrics: { torsoLean: torsoLean(points) },
     };
@@ -272,7 +275,9 @@ const press = {
   frameHint: 'Step back so your hands are visible above your head',
   primaryLabel: 'Elbow angle',
   rest: 95,
-  peak: 155,
+  // A straight arm reads short of 180° under pose jitter (noise can only bend it), so
+  // lockout is judged at 145°. A press that stops around 130° still gets the cue.
+  peak: 145,
   minRepMs: 800,
   partialCue: 'Lock out fully overhead',
   measure(points) {

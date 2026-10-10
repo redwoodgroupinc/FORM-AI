@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { EXERCISES, EXERCISE_ORDER } from '../assets/js/engine/exercises.js';
-import { LM } from '../assets/js/engine/geometry.js';
+import { LM, jointAngle } from '../assets/js/engine/geometry.js';
 import { squatPose } from '../assets/js/demo/synthetic.js';
 import { points } from './helpers.js';
 
@@ -159,20 +159,23 @@ test('press: lockout, uneven arms, back arch and arms-down handling', () => {
   assert.equal(armsDown.arc, null);
 });
 
-test('lunge: front knee drives the count and forward lean is flagged', () => {
+test('lunge: both knees drive the count, the front knee gets the angle, lean is flagged', () => {
   const ex = EXERCISES.lunge;
   const pts = points({
     [LM.LEFT_HIP]: { x: 0, y: 0 },
     [LM.LEFT_KNEE]: { x: -0.4, y: 0.05 },
     [LM.LEFT_ANKLE]: { x: -0.4, y: 0.45 },
     [LM.RIGHT_HIP]: { x: 0, y: 0 },
-    [LM.RIGHT_KNEE]: { x: 0.15, y: 0.4 },
-    [LM.RIGHT_ANKLE]: { x: 0.55, y: 0.45 },
+    [LM.RIGHT_KNEE]: { x: 0.1, y: 0.42 },
+    [LM.RIGHT_ANKLE]: { x: 0.5, y: 0.44 },
     [LM.LEFT_SHOULDER]: { x: -0.3, y: -0.45 },
     [LM.RIGHT_SHOULDER]: { x: -0.3, y: -0.45 },
   });
   const m = ex.measure(pts);
   assert.deepEqual(m.arc, [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE]);
-  assert.ok(m.value < ex.peak);
+  const front = jointAngle(pts[LM.LEFT_HIP], pts[LM.LEFT_KNEE], pts[LM.LEFT_ANKLE]);
+  const back = jointAngle(pts[LM.RIGHT_HIP], pts[LM.RIGHT_KNEE], pts[LM.RIGHT_ANKLE]);
+  assert.ok(Math.abs(m.value - (front + back) / 2) < 1e-9);
+  assert.ok(m.value < ex.peak, `average knee angle ${m.value}`);
   assert.deepEqual(failing(ex, m.metrics), ['lean_forward']);
 });

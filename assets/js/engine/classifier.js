@@ -63,19 +63,27 @@ export function frameFeatures(points) {
   }
 
   let hipHeight = null;
+  let hipAnkleDrop = null;
   let legLean = null;
   let stanceForeAft = null;
   let stanceLateral = null;
   const anklesVisible = isVisible(points, [LM.LEFT_ANKLE, LM.RIGHT_ANKLE]);
   if (legLength && anklesVisible) {
     const ankleMid = midpoint(points[LM.LEFT_ANKLE], points[LM.RIGHT_ANKLE]);
-    hipHeight = (ankleMid.y - hipMid.y) / legLength;
+    hipAnkleDrop = ankleMid.y - hipMid.y;
+    hipHeight = hipAnkleDrop / legLength;
     legLean = angleFromVertical(hipMid, ankleMid);
     if (hips.length === 2) {
-      // Split the ankle-to-ankle vector into side-to-side (along the hips) and
-      // front-to-back components on the floor plane.
-      const hx = points[LM.LEFT_HIP].x - points[LM.RIGHT_HIP].x;
-      const hz = (points[LM.LEFT_HIP].z ?? 0) - (points[LM.RIGHT_HIP].z ?? 0);
+      // Split the ankle-to-ankle vector into side-to-side (along the body's left-right
+      // axis) and front-to-back components on the floor plane. The hips alone are only
+      // ~20 cm apart, so depth jitter swings their axis wildly; adding the shoulder line
+      // (~38 cm) steadies it.
+      let hx = points[LM.LEFT_HIP].x - points[LM.RIGHT_HIP].x;
+      let hz = (points[LM.LEFT_HIP].z ?? 0) - (points[LM.RIGHT_HIP].z ?? 0);
+      if (shoulders.length === 2) {
+        hx += points[LM.LEFT_SHOULDER].x - points[LM.RIGHT_SHOULDER].x;
+        hz += (points[LM.LEFT_SHOULDER].z ?? 0) - (points[LM.RIGHT_SHOULDER].z ?? 0);
+      }
       const hLen = Math.hypot(hx, hz) || 1;
       const ax = points[LM.LEFT_ANKLE].x - points[LM.RIGHT_ANKLE].x;
       const az = (points[LM.LEFT_ANKLE].z ?? 0) - (points[LM.RIGHT_ANKLE].z ?? 0);
@@ -96,6 +104,8 @@ export function frameFeatures(points) {
     wristLiftLeft: wristLift.left,
     wristLiftRight: wristLift.right,
     hipHeight,
+    hipAnkleDrop,
+    legLength,
     stanceForeAft,
     stanceLateral,
   };
@@ -118,11 +128,16 @@ function percentile(sorted, q) {
   return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
 }
 
-/** Robust spread: 95th minus 5th percentile, so one bad frame can't fake a movement. */
+/**
+ * Range of motion, ignoring a few extreme frames so one bad detection can't fake a
+ * movement. Trims a fixed number of frames (not a percentage), so a long pause at the
+ * top or bottom of a rep doesn't hide the movement itself.
+ */
 function spread(list) {
   if (list.length < 3) return 0;
   const sorted = [...list].sort((a, b) => a - b);
-  return percentile(sorted, 0.95) - percentile(sorted, 0.05);
+  const trim = Math.min(3, Math.floor(sorted.length * 0.05));
+  return sorted[sorted.length - 1 - trim] - sorted[trim];
 }
 
 function median(list) {
@@ -132,6 +147,38 @@ function median(list) {
 
 const minOf = (a, b) => (a === null ? b : b === null ? a : Math.min(a, b));
 
+const SMOOTHED = [
+  'torsoLean', 'legLean', 'kneeLeft', 'kneeRight', 'elbowLeft', 'elbowRight', 'wristLiftLeft',
+  'wristLiftRight', 'hipHeight', 'hipAnkleDrop', 'stanceForeAft', 'stanceLateral',
+];
+
+/**
+ * Centred moving average over `k` frames. Pose jitter (especially depth) is mostly
+ * frame-to-frame, while real movement is slow, so this removes noise that would
+ * otherwise look like motion: straight legs "bending", still arms "curling".
+ */
+function smooth(frames, k) {
+  if (k <= 1) return frames;
+  const half = Math.floor(k / 2);
+  return frames.map((frame, i) => {
+    const out = { ...frame };
+    for (const key of SMOOTHED) {
+      if (frame[key] === null || frame[key] === undefined) continue;
+      let sum = 0;
+      let n = 0;
+      for (let j = Math.max(0, i - half); j <= Math.min(frames.length - 1, i + half); j += 1) {
+        const v = frames[j][key];
+        if (v !== null && v !== undefined && Number.isFinite(v)) {
+          sum += v;
+          n += 1;
+        }
+      }
+      out[key] = sum / n;
+    }
+    return out;
+  });
+}
+
 /**
  * Score a span of frame features (typically one rep) against every exercise.
  * @param {Array<object|null>} frames output of frameFeatures, in time order
@@ -139,15 +186,19 @@ const minOf = (a, b) => (a === null ? b : b === null ? a : Math.min(a, b));
  */
 export function classifySpan(frames) {
   const scores = Object.fromEntries(EXERCISE_IDS.map((id) => [id, 0]));
-  const valid = frames.filter(Boolean);
-  if (valid.length < 5) return { exerciseId: null, confidence: 0, scores };
+  const raw = frames.filter(Boolean);
+  if (raw.length < 5) return { exerciseId: null, confidence: 0, scores };
+  // ~5 frames at 30 fps; fewer at low frame rates so the movement itself isn't flattened.
+  const valid = smooth(raw, Math.max(3, Math.min(7, Math.round(raw.length / 10)) | 1));
 
   const lying = (f) => f.torsoLean > 55 && (f.legLean === null || f.legLean > 45);
   const horizontal = valid.filter(lying).length / valid.length;
 
   const kneeMin = values(valid, (f) => minOf(f.kneeLeft, f.kneeRight));
   const kneeRange = spread(kneeMin);
-  const hipDrop = spread(values(valid, (f) => f.hipHeight));
+  // Normalise by the span's median leg length: per-frame leg length is itself noisy.
+  const leg = median(values(raw, (f) => f.legLength));
+  const hipDrop = leg ? spread(values(valid, (f) => f.hipAnkleDrop)) / leg : 0;
 
   const leftRange = spread(values(valid, (f) => f.elbowLeft));
   const rightRange = spread(values(valid, (f) => f.elbowRight));
@@ -160,8 +211,15 @@ export function classifySpan(frames) {
     scores.pushup = clamp01((armRange - 15) / 30);
   } else {
     const upright = 1 - clamp01((horizontal - 0.2) / 0.4);
-    const legs = clamp01((kneeRange - 20) / 30) * clamp01((hipDrop - 0.04) / 0.1);
+    const legs = clamp01((kneeRange - 25) / 30) * clamp01((hipDrop - 0.06) / 0.1);
     const arms = clamp01((armRange - 25) / 40);
+    // Which body part does the work? Compare each range with a typical full rep
+    // (knees ~90°, elbows ~110°), so noise on the idle limbs can't outvote real movement.
+    const legEffort = (kneeRange / 90) * clamp01(hipDrop / 0.2);
+    const armEffort = armRange / 110;
+    const legShare = legEffort + armEffort > 0 ? legEffort / (legEffort + armEffort) : 0.5;
+    const legsLead = clamp01((legShare - 0.3) / 0.2);
+    const armsLead = clamp01((0.7 - legShare) / 0.2);
 
     // Judge stance while the knees are bent, where squat and lunge differ most.
     let foreAft = null;
@@ -171,13 +229,12 @@ export function classifySpan(frames) {
         ? f.stanceForeAft : null));
     }
     const lungeness = foreAft === null ? 0 : clamp01((foreAft - 0.3) / 0.25);
-    scores.squat = upright * legs * (1 - lungeness);
-    scores.lunge = upright * legs * lungeness;
+    scores.squat = upright * legs * legsLead * (1 - lungeness);
+    scores.lunge = upright * legs * legsLead * lungeness;
 
     const overhead = clamp01((overheadShare - 0.15) / 0.3);
-    const armsOnly = 1 - 0.8 * legs;
-    scores.press = upright * arms * overhead * armsOnly;
-    scores.curl = upright * arms * (1 - overhead) * armsOnly;
+    scores.press = upright * arms * armsLead * overhead;
+    scores.curl = upright * arms * armsLead * (1 - overhead);
   }
 
   let exerciseId = null;

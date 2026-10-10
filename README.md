@@ -59,7 +59,22 @@ each rep must classify as its own exercise. Accepted reps are grouped into **set
 starts when you switch exercise or rest for 30 seconds, and each set is saved to history.
 
 Mid-rep corrections come from the exercise being coached, and are only spoken once the rep so
-far looks like that exercise. So switching from squats to lunges doesn't trigger a squat cue.
+far is clearly that exercise. So switching from squats to lunges doesn't trigger a squat cue.
+
+**Robustness to pose jitter.** Real landmarks wobble from frame to frame, especially in depth.
+To cope with that:
+
+- Features are smoothed over a few frames before range of motion is measured, so idle limbs
+  don't look like they're moving.
+- Legs and arms are compared by which one does more of the work.
+- The coached exercise keeps a borderline rep unless another exercise scores clearly
+  better, so one odd rep can't split a set.
+- Naming or switching exercise takes a full rep at a controlled pace.
+- Half reps must last at least 0.7 s.
+
+A noise harness (2–3 cm image-plane and 10–15 cm depth jitter, 10–30 fps) shows automatic
+recognition counting as well as a coach told the exercise in advance, with no reps
+attributed to the wrong exercise.
 
 ### Her voice
 

@@ -143,3 +143,105 @@ test('snapshot reports the live set for the HUD', () => {
   assert.equal(last.formScore, 85);
   assert.deepEqual(last.faultCounts, { lean_forward: 1 });
 });
+
+// ---------------------------------------------------------------------------
+// Regressions from review and robustness testing.
+
+/** Deterministic Gaussian noise, so jitter tests are repeatable. */
+function noise(seed = 1) {
+  let a = seed >>> 0;
+  const uniform = () => {
+    a = (a * 1664525 + 1013904223) >>> 0;
+    return (a + 0.5) / 4294967296;
+  };
+  return () => Math.sqrt(-2 * Math.log(uniform())) * Math.cos(2 * Math.PI * uniform());
+}
+
+/** MediaPipe-like jitter: ~2 cm in the image plane, ~10 cm in depth, every frame. */
+function jitter(pose, gauss, { xy = 0.02, z = 0.1 } = {}) {
+  const shake = (p, k) => ({ ...p, x: p.x + gauss() * xy * k, y: p.y + gauss() * xy * k, z: p.z + gauss() * z * k });
+  return { landmarks: pose.landmarks.map((p) => shake(p, 0.7)), worldLandmarks: pose.worldLandmarks.map((p) => shake(p, 1)) };
+}
+
+const lerpPoints = (a, b, k) => a.map((p, i) => ({
+  x: p.x + (b[i].x - p.x) * k, y: p.y + (b[i].y - p.y) * k, z: p.z + (b[i].z - p.z) * k, visibility: p.visibility,
+}));
+
+test('half reps of the coached exercise are counted and cued', () => {
+  const coach = new AutoCoach();
+  run(reps('squat'), 2400 * 2, { coach });
+  const shallow = (t) => exercisePose('squat', repDepth(((t - 4833) % 2400) / 2400) * 0.6);
+  const { events } = run(shallow, 2400 * 3 - 100, { coach, start: 4833 });
+  const partials = events.filter((e) => e.type === 'partial');
+  assert.equal(partials.length, 3);
+  assert.equal(partials[0].cue, 'Sit deeper. Hips down to knee level');
+  assert.equal(coach.summary().sets[0].partialReps, 3);
+});
+
+test('one borderline rep does not split a set', () => {
+  // Stance wobbles either side of where squat turns into lunge (~0.43 of the way).
+  const blends = [0.38, 0.45, 0.4, 0.44, 0.39, 0.45, 0.41, 0.44];
+  const pose = (t) => {
+    const k = blends[Math.min(blends.length - 1, Math.floor(t / 2400))];
+    const d = repDepth((t % 2400) / 2400);
+    const s = exercisePose('squat', d);
+    const l = exercisePose('lunge', d, { yaw: -0.38 });
+    return { landmarks: lerpPoints(s.landmarks, l.landmarks, k), worldLandmarks: lerpPoints(s.worldLandmarks, l.worldLandmarks, k) };
+  };
+  const { coach, events } = run(pose, 2400 * blends.length - 50);
+  assert.equal(events.filter((e) => e.type === 'exercise').length, 1);
+  assert.deepEqual(coach.summary().sets.map((s) => [s.exerciseId, s.reps]), [['squat', 8]]);
+});
+
+test('raising the hands from curls into a press stance is not called a curl fault', () => {
+  const program = [
+    { exercise: 'curl', repMs: 2200, faults: [null, null, null] },
+    { exercise: 'press', repMs: 2400, faults: [null, null, null] },
+  ];
+  const { coach, events } = run((t) => programFrame(t, program).pose, programDuration(program) - 50);
+  assert.deepEqual(events.filter((e) => e.type === 'fault').map((e) => e.check.id), []);
+  assert.deepEqual(coach.summary().sets.map((s) => [s.exerciseId, s.reps]), [['curl', 3], ['press', 3]]);
+});
+
+test('the rest timer never closes a set in the middle of a rep', () => {
+  const coach = new AutoCoach();
+  run(reps('curl'), 2400 * 2, { coach });
+  // Stand still for almost the whole break, then do one slow 4 s rep across the deadline.
+  const lastRep = 2400 * 2;
+  run(() => exercisePose('curl', 0), SET_BREAK_MS - 2500, { coach, start: lastRep + 33 });
+  const start = lastRep + SET_BREAK_MS - 2400;
+  const slow = run((t) => exercisePose('curl', repDepth((t - start) / 4000)), 4000, { coach, start });
+  assert.equal(slow.events.filter((e) => e.type === 'set').length, 0);
+  assert.equal(slow.events.find((e) => e.type === 'rep').count, 3);
+});
+
+test('a long pause at the top of a rep still counts', () => {
+  const coach = new AutoCoach();
+  run(reps('press'), 2400 * 2, { coach });
+  // Lock out and hold for 10 s before lowering.
+  const start = 2400 * 2 + 33;
+  const hold = (t) => {
+    const local = t - start;
+    const depth = local < 900 ? repDepth(local / 2400) : local < 10900 ? 1 : repDepth(0.6 + (local - 10900) / 2400);
+    return exercisePose('press', depth);
+  };
+  const { events } = run(hold, 12000, { coach, start });
+  assert.equal(events.filter((e) => e.type === 'rep').length, 1);
+});
+
+test('pose jitter does not stop curls and presses from counting', () => {
+  for (const exercise of ['curl', 'press']) {
+    const gauss = noise(7);
+    const { coach, events } = run((t) => jitter(reps(exercise)(t), gauss), 2400 * 8 - 50);
+    const counted = events.filter((e) => e.type === 'rep').map((e) => e.exerciseId);
+    assert.ok(counted.length >= 6, `${exercise}: ${counted.length}/8`);
+    assert.ok(counted.every((id) => id === exercise), `${exercise}: ${counted}`);
+    assert.equal(coach.summary().sets.length, 1, exercise);
+  }
+});
+
+test('standing still with jitter names no exercise and gives no cues', () => {
+  const gauss = noise(3);
+  const { events } = run(() => jitter(exercisePose('squat', 0), gauss), 15000);
+  assert.deepEqual(events.map((e) => e.type), []);
+});
