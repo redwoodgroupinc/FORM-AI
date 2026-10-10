@@ -149,3 +149,21 @@ test('a long tracking gap does not blend stale angles into new ones', () => {
   const frame = coach.update(ANY_POSE, 5000);
   assert.equal(Math.round(frame.value), 95);
 });
+
+test('a corrupt landmark frame is skipped instead of breaking the count', () => {
+  const coach = new FormCoach(EXERCISES.squat);
+  const bad = squatPose(0);
+  bad.worldLandmarks[LM.LEFT_KNEE] = { ...bad.worldLandmarks[LM.LEFT_KNEE], x: Number.NaN };
+  bad.worldLandmarks[LM.RIGHT_KNEE] = { ...bad.worldLandmarks[LM.RIGHT_KNEE], x: Number.NaN };
+  assert.equal(coach.update(bad, 0).status, 'not_visible');
+  for (let t = 33; t <= 2600 * 3; t += 33) coach.update(squatPose(repDepth((t % 2600) / 2600)), t);
+  assert.equal(coach.reps, 3);
+});
+
+test('a rep seen at full depth in its first moving frame is a rep, not a partial', () => {
+  // e.g. a slow device (or the camera pausing for speech) that skips the descent.
+  const { exercise, input } = fakeExercise({ rest: 160, peak: 100 });
+  const coach = new FormCoach(exercise);
+  const { events } = driveValues(coach, input, [[160, 400], [90, 1], [160, 400], [160, 400]], { fps: 2.5 });
+  assert.deepEqual(events.map((e) => e.type), ['rep']);
+});

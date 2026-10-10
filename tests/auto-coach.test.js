@@ -245,3 +245,64 @@ test('standing still with jitter names no exercise and gives no cues', () => {
   const { events } = run(() => jitter(exercisePose('squat', 0), gauss), 15000);
   assert.deepEqual(events.map((e) => e.type), []);
 });
+
+/** Like reps(), with a start offset, a range scale (0–1) and extra pose options. */
+const repsFrom = (exercise, { repMs = 2400, offset = 0, scale = 1, faults = [], ...opts } = {}) => (t) => exercisePose(
+  exercise,
+  repDepth(((t - offset) % repMs) / repMs) * scale,
+  { fault: faults[Math.floor((t - offset) / repMs)] ?? null, ...opts },
+);
+
+test('sitting down between sets closes the set instead of counting a 45-second rep', () => {
+  const coach = new AutoCoach();
+  run(reps('squat'), 2400 * 3 - 30, { coach });
+  let start = 2400 * 3;
+  // Sit on a bench (knees bent like the bottom of a squat), rest, then stand up.
+  run((t) => exercisePose('squat', 0.9 * Math.min(1, (t - start) / 1200)), 1200, { coach, start });
+  start += 1233;
+  const seated = run(() => exercisePose('squat', 0.9), 45000, { coach, start });
+  assert.deepEqual(seated.events.map((e) => `${e.type}:${e.reason ?? ''}`), ['set:rest']);
+  start += 45033;
+  const standing = run((t) => exercisePose('squat', 0.9 * (1 - Math.min(1, (t - start) / 1200))), 1500, { coach, start });
+  assert.deepEqual(standing.events.filter((e) => e.type === 'rep'), []);
+  start += 1533;
+  run(repsFrom('squat', { offset: start }), 2400 * 3 - 30, { coach, start });
+  const { sets } = coach.summary();
+  assert.deepEqual(sets.map((s) => s.reps), [3, 3]);
+  assert.ok(sets.every((s) => s.avgRepMs < 5000), 'no rest time counted as a rep');
+});
+
+test('brisk reps are counted and told to slow down, not ignored', () => {
+  for (const exercise of ['squat', 'curl', 'press']) {
+    const { events } = run(reps(exercise, { repMs: 1000 }), 6000 - 30);
+    const counted = events.filter((e) => e.type === 'rep');
+    assert.ok(counted.length >= 5, `${exercise}: ${counted.length}/6 counted`);
+    assert.ok(counted.every((e) => e.exerciseId === exercise), exercise);
+    assert.ok(events.some((e) => e.type === 'fault' && e.check.id === 'too_fast'), `${exercise}: tempo cue`);
+  }
+});
+
+test('faults called out during half reps are kept in the set record', () => {
+  const coach = new AutoCoach();
+  run(reps('curl'), 2400 * 2 - 30, { coach });
+  const start = 2400 * 2;
+  const { events } = run(repsFrom('curl', {
+    offset: start, scale: 0.75, faults: ['elbowDrift', 'elbowDrift', 'elbowDrift'],
+  }), 2400 * 3 - 30, { coach, start });
+  const spoken = events.filter((e) => e.type === 'fault').length;
+  assert.ok(spoken > 0);
+  assert.equal(events.filter((e) => e.type === 'partial').length, 3);
+  const [set] = coach.summary().sets;
+  assert.deepEqual(set.faults.map((f) => [f.id, f.count]), [['elbow_drift', spoken]]);
+});
+
+test('side-on lunges are lunges even when the far hip is hidden', () => {
+  const base = (t) => exercisePose('lunge', repDepth((t % 2400) / 2400), { yaw: -Math.PI / 2 });
+  const hideFarHip = (pose) => {
+    pose.landmarks[24].visibility = 0.3;
+    pose.worldLandmarks[24].visibility = 0.3;
+    return pose;
+  };
+  const { coach } = run((t) => hideFarHip(base(t)), 2400 * 3 - 30);
+  assert.deepEqual(coach.summary().sets.map((s) => `${s.exerciseId}x${s.reps}`), ['lungex3']);
+});

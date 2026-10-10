@@ -31,6 +31,13 @@ const CONFIRM_FAULT_CONFIDENCE = 0.8;
  * "leave and return" in a few frames; a real half rep takes most of a second.
  */
 const PARTIAL_MIN_MS = 700;
+/** A "rep" longer than this is someone resting (seated, standing up, out of frame), not a rep. */
+const MAX_REP_MS = HISTORY_MS;
+/**
+ * Reps too quick to name the exercise on their own still count when two come back to back
+ * like this: one quick flick can be jitter, a rhythm of them is a rushed set.
+ */
+const RUSHED_GAP_MS = 3000;
 
 export const HINTS = Object.freeze({
   noPose: 'Step into the frame',
@@ -83,6 +90,7 @@ export class AutoCoach {
     this.liveExerciseId = null;
     this.announced = new Map();
     this.pending = [];
+    this.rushed = null;
     this.firstTrackedAt = null;
     this.lastTrackedAt = null;
   }
@@ -112,8 +120,9 @@ export class AutoCoach {
     while (this.history.length && this.history[0].t < cutoff) this.history.shift();
     for (const [key, t] of this.announced) if (t < cutoff) this.announced.delete(key);
 
-    const liveCoach = this.coaches.get(this.liveExerciseId);
-    if (this.current && !liveCoach?.currentRep && timeMs - this.current.lastActivityAt > SET_BREAK_MS) {
+    const liveRep = this.coaches.get(this.liveExerciseId)?.currentRep;
+    const midRep = liveRep && timeMs - liveRep.startedAt < MAX_REP_MS;
+    if (this.current && !midRep && timeMs - this.current.lastActivityAt > SET_BREAK_MS) {
       this.closeSet(events, 'rest');
     }
 
@@ -179,8 +188,21 @@ export class AutoCoach {
     }
 
     if (event.type === 'rep') {
-      if (this.acceptsRep(id, this.classify(event.rep.startedAt, event.rep.endedAt), event.rep)) {
+      if (event.rep.durationMs > MAX_REP_MS) return;
+      const verdict = this.classify(event.rep.startedAt, event.rep.endedAt);
+      if (this.acceptsRep(id, verdict, event.rep)) {
         this.acceptRep(id, event.rep, timeMs, events);
+      } else if (id !== this.liveExerciseId && this.acceptsRep(id, verdict, { durationMs: Infinity })) {
+        // Recognisably this exercise, only too quick to name it (see RUSHED_GAP_MS). Both
+        // reps count, and each carries the tempo flag, so she tells them to slow down.
+        const previous = this.rushed;
+        if (previous?.id === id && timeMs - previous.at < RUSHED_GAP_MS) {
+          this.rushed = null;
+          this.acceptRep(id, previous.rep, previous.at, events);
+          this.acceptRep(id, event.rep, timeMs, events);
+        } else {
+          this.rushed = { id, at: timeMs, rep: event.rep };
+        }
       }
       return;
     }
@@ -192,11 +214,19 @@ export class AutoCoach {
       // half-rep spans are too short to tell real movement from jitter reliably.
       if (id !== this.liveExerciseId) return;
       if (event.endedAt - event.startedAt < PARTIAL_MIN_MS) return;
+      if (event.endedAt - event.startedAt > MAX_REP_MS) return;
       const top = AutoCoach.best(this.classify(event.startedAt, event.endedAt).scores);
       if (top.id !== null && top.id !== id) return;
       const set = this.openSet(id, timeMs, events);
       set.partialReps += 1;
       set.lastActivityAt = timeMs;
+      // Corrections she called out during the half rep belong in the set's record too.
+      for (const faultId of event.faults ?? []) {
+        const key = `${id}@${event.startedAt}:${faultId}`;
+        if (!this.announced.has(key)) continue;
+        set.faultCounts[faultId] = (set.faultCounts[faultId] ?? 0) + 1;
+        this.announced.delete(key);
+      }
       events.push({ type: 'partial', cue: event.cue, exerciseId: id });
     }
   }

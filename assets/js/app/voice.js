@@ -70,8 +70,10 @@ export class VoiceCoach {
   sayAll(items) {
     if (!this.supported || !this.enabled) return false;
     const now = performance.now();
-    const fresh = items.filter((item) => {
-      if (!item?.text) return false;
+    // One line per key, keeping the latest (e.g. the higher rep count).
+    const latest = new Map();
+    for (const item of items) if (item?.text) latest.set(item.key ?? item.text, item);
+    const fresh = [...latest.values()].filter((item) => {
       const last = this.lastSpokenAt.get(item.key ?? item.text);
       return last === undefined || now - last >= (item.cooldownMs ?? 4000);
     });

@@ -10,7 +10,7 @@
 //   - curl vs overhead press    hands stay below the shoulders vs travel above the head
 
 import {
-  LM, SIDES, jointAngle, angleFromVertical, midpoint, distance, isVisible,
+  LM, SIDES, jointAngle, angleFromVertical, distance, isVisible,
 } from './geometry.js';
 
 export const EXERCISE_IDS = ['squat', 'lunge', 'pushup', 'curl', 'press'];
@@ -67,12 +67,17 @@ export function frameFeatures(points) {
   let legLean = null;
   let stanceForeAft = null;
   let stanceLateral = null;
-  const anklesVisible = isVisible(points, [LM.LEFT_ANKLE, LM.RIGHT_ANKLE]);
-  if (legLength && anklesVisible) {
-    const ankleMid = midpoint(points[LM.LEFT_ANKLE], points[LM.RIGHT_ANKLE]);
+  const ankles = [LM.LEFT_ANKLE, LM.RIGHT_ANKLE].filter((i) => isVisible(points, [i]));
+  if (legLength && ankles.length) {
+    // The hip drop only needs the ankle(s) the camera sees.
+    const ankleMid = avg(ankles);
     hipAnkleDrop = ankleMid.y - hipMid.y;
     hipHeight = hipAnkleDrop / legLength;
     legLean = angleFromVertical(hipMid, ankleMid);
+  }
+  if (legLength && ankles.length === 2) {
+    const ax = points[LM.LEFT_ANKLE].x - points[LM.RIGHT_ANKLE].x;
+    const az = (points[LM.LEFT_ANKLE].z ?? 0) - (points[LM.RIGHT_ANKLE].z ?? 0);
     if (hips.length === 2) {
       // Split the ankle-to-ankle vector into side-to-side (along the body's left-right
       // axis) and front-to-back components on the floor plane. The hips alone are only
@@ -85,12 +90,14 @@ export function frameFeatures(points) {
         hz += (points[LM.LEFT_SHOULDER].z ?? 0) - (points[LM.RIGHT_SHOULDER].z ?? 0);
       }
       const hLen = Math.hypot(hx, hz) || 1;
-      const ax = points[LM.LEFT_ANKLE].x - points[LM.RIGHT_ANKLE].x;
-      const az = (points[LM.LEFT_ANKLE].z ?? 0) - (points[LM.RIGHT_ANKLE].z ?? 0);
       const lateral = (ax * hx + az * hz) / hLen;
       const foreAft = Math.sqrt(Math.max(0, ax * ax + az * az - lateral * lateral));
       stanceLateral = Math.abs(lateral) / legLength;
       stanceForeAft = foreAft / legLength;
+    } else {
+      // No left-right axis (far hip hidden, e.g. side-on): a split stance is still far
+      // wider than a squat stance, so judge the total floor distance between the feet.
+      stanceForeAft = Math.max(0, Math.hypot(ax, az) / legLength - 0.3);
     }
   }
 

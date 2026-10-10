@@ -94,8 +94,13 @@ To cope with that:
 - Legs and arms are compared by which one does more of the work.
 - The coached exercise keeps a borderline rep unless another exercise scores clearly
   better, so one odd rep can't split a set.
-- Naming or switching exercise takes a full rep at a controlled pace.
-- Half reps must last at least 0.7 s.
+- Naming or switching exercise takes a full rep at a controlled pace, or two quick reps back
+  to back (both count, flagged for tempo).
+- Half reps must last at least 0.7 s, and nothing longer than 20 s counts as a rep, so sitting
+  on a bench, standing up from a plank or leaving the frame between sets ends the set instead.
+- Side-on views where MediaPipe loses the far hip or ankle still tell squats from lunges.
+- Lean checks for curls and presses compare the torso with the athlete's own legs, so a phone
+  propped at an angle doesn't read as leaning back.
 
 A noise harness (2–3 cm image-plane and 10–15 cm depth jitter, 10–30 fps) shows automatic
 recognition counting as well as a coach told the exercise in advance, with no reps

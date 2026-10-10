@@ -91,10 +91,12 @@ function curlPose({ elbowX = 0, wristY = -0.05, wristX = -0.25, torsoX = 0 } = {
     [LM.LEFT_ELBOW]: { x: elbowX, y: -0.2 },
     [LM.LEFT_WRIST]: { x: wristX, y: wristY },
     [LM.LEFT_HIP]: { x: 0, y: 0 },
+    [LM.LEFT_ANKLE]: { x: 0, y: 0.85 },
     [LM.RIGHT_SHOULDER]: { x: torsoX, y: -0.5, visibility: 0.05 },
     [LM.RIGHT_ELBOW]: { x: elbowX, y: -0.2, visibility: 0.05 },
     [LM.RIGHT_WRIST]: { x: wristX, y: wristY, visibility: 0.05 },
     [LM.RIGHT_HIP]: { x: 0, y: 0, visibility: 0.05 },
+    [LM.RIGHT_ANKLE]: { x: 0, y: 0.85, visibility: 0.05 },
   });
 }
 
@@ -124,17 +126,25 @@ test('curl: the most-bent arm is the working arm', () => {
   assert.deepEqual(m.arc, [LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST]);
 });
 
-function pressPose({ leftWristY = -0.95, rightWristY = -0.95, lean = 0 } = {}) {
+function pressPose({ leftWristY = -0.95, rightWristY = -0.95, rightElbowY = -0.75, lean = 0 } = {}) {
   return points({
     [LM.LEFT_SHOULDER]: { x: 0.19 + lean, y: -0.5 },
     [LM.RIGHT_SHOULDER]: { x: -0.19 + lean, y: -0.5 },
     [LM.LEFT_ELBOW]: { x: 0.21 + lean, y: -0.75 },
-    [LM.RIGHT_ELBOW]: { x: -0.21 + lean, y: -0.75 },
+    [LM.RIGHT_ELBOW]: { x: -0.21 + lean, y: rightElbowY },
     [LM.LEFT_WRIST]: { x: 0.22 + lean, y: leftWristY },
     [LM.RIGHT_WRIST]: { x: -0.22 + lean, y: rightWristY },
     [LM.LEFT_HIP]: { x: 0.1, y: 0 },
     [LM.RIGHT_HIP]: { x: -0.1, y: 0 },
+    [LM.LEFT_ANKLE]: { x: 0.1, y: 0.85 },
+    [LM.RIGHT_ANKLE]: { x: -0.1, y: 0.85 },
   });
+}
+
+/** Rotate a pose in the image plane, as a phone propped at an angle would see it. */
+function tilt(pts, degrees) {
+  const a = (degrees * Math.PI) / 180;
+  return pts.map((p) => ({ ...p, x: p.x * Math.cos(a) - p.y * Math.sin(a), y: p.x * Math.sin(a) + p.y * Math.cos(a) }));
 }
 
 test('press: lockout, uneven arms, back arch and arms-down handling', () => {
@@ -143,7 +153,8 @@ test('press: lockout, uneven arms, back arch and arms-down handling', () => {
   assert.ok(lockout.value > ex.peak);
   assert.deepEqual(failing(ex, lockout.metrics), []);
 
-  assert.ok(failing(ex, ex.measure(pressPose({ rightWristY: -0.75 })).metrics).includes('uneven'));
+  // Both arms pressing, one well short of the other.
+  assert.ok(failing(ex, ex.measure(pressPose({ rightElbowY: -0.62, rightWristY: -0.78 })).metrics).includes('uneven'));
   assert.ok(failing(ex, ex.measure(pressPose({ lean: -0.15 })).metrics).includes('back_arch'));
 
   // Arms hanging by the sides are straight too, but must read as rest, not lockout.
@@ -157,6 +168,41 @@ test('press: lockout, uneven arms, back arch and arms-down handling', () => {
   }));
   assert.equal(armsDown.value, ex.rest);
   assert.equal(armsDown.arc, null);
+});
+
+test('press and curl: a tilted phone is not mistaken for leaning', () => {
+  for (const degrees of [-16, 16]) {
+    const press = EXERCISES.press.measure(tilt(pressPose(), degrees));
+    assert.deepEqual(failing(EXERCISES.press, press.metrics), [], `press tilted ${degrees}°`);
+    const curl = EXERCISES.curl.measure(tilt(curlPose(), degrees));
+    assert.deepEqual(failing(EXERCISES.curl, curl.metrics), [], `curl tilted ${degrees}°`);
+  }
+  // A real lean is still caught when the phone is tilted.
+  const leaning = EXERCISES.press.measure(tilt(pressPose({ lean: -0.15 }), 10));
+  assert.ok(failing(EXERCISES.press, leaning.metrics).includes('back_arch'));
+});
+
+test('press: a single-arm press counts and is not called uneven', () => {
+  const ex = EXERCISES.press;
+  const oneArm = ex.measure(points({
+    [LM.LEFT_SHOULDER]: { x: 0.19, y: -0.5 },
+    [LM.RIGHT_SHOULDER]: { x: -0.19, y: -0.5 },
+    [LM.LEFT_ELBOW]: { x: 0.21, y: -0.75 },
+    [LM.LEFT_WRIST]: { x: 0.22, y: -0.95 },
+    [LM.RIGHT_ELBOW]: { x: -0.2, y: -0.2 },
+    [LM.RIGHT_WRIST]: { x: -0.2, y: 0.05 },
+    [LM.LEFT_HIP]: { x: 0.1, y: 0 },
+    [LM.RIGHT_HIP]: { x: -0.1, y: 0 },
+    [LM.LEFT_ANKLE]: { x: 0.1, y: 0.85 },
+    [LM.RIGHT_ANKLE]: { x: -0.1, y: 0.85 },
+  }));
+  assert.ok(oneArm.value > ex.peak, `single-arm lockout read as ${oneArm.value}`);
+  assert.deepEqual(failing(ex, oneArm.metrics), []);
+
+  // The other dumbbell racked at the shoulder (wrist above it, elbow bent) is not pressing.
+  const racked = ex.measure(pressPose({ rightElbowY: -0.3, rightWristY: -0.55 }));
+  assert.ok(racked.value > ex.peak, `lockout with the other arm racked read as ${racked.value}`);
+  assert.deepEqual(failing(ex, racked.metrics), []);
 });
 
 test('lunge: both knees drive the count, the front knee gets the angle, lean is flagged', () => {

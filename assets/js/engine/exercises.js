@@ -41,6 +41,50 @@ function torsoLean(points) {
   return angleFromVertical(shoulders, hips);
 }
 
+/**
+ * Torso lean measured against the athlete's own straight legs (ankles to hips) instead of
+ * the camera's vertical, so a phone that is tilted or propped up at an angle doesn't read
+ * as leaning. For standing exercises with straight legs (curl, press).
+ * `state` (one per coach) averages the leg direction over time: the ankles' depth is noisy,
+ * but the legs' true direction barely changes during a set.
+ */
+function standingLean(points, state) {
+  const ankles = [LM.LEFT_ANKLE, LM.RIGHT_ANKLE].filter((i) => isVisible(points, [i]));
+  const hipsIdx = [LM.LEFT_HIP, LM.RIGHT_HIP].filter((i) => isVisible(points, [i]));
+  const shouldersIdx = [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER].filter((i) => isVisible(points, [i]));
+  if (!ankles.length || !hipsIdx.length || !shouldersIdx.length) return torsoLean(points);
+  const mean = (idx) => idx.map((i) => points[i]).reduce((m, p, _, a) => ({
+    x: m.x + p.x / a.length, y: m.y + p.y / a.length, z: m.z + (p.z ?? 0) / a.length,
+  }), { x: 0, y: 0, z: 0 });
+  const ankle = mean(ankles);
+  const hip = mean(hipsIdx);
+  const shoulder = mean(shouldersIdx);
+  let up = unit({ x: hip.x - ankle.x, y: hip.y - ankle.y, z: hip.z - ankle.z });
+  // Lying or crouching (e.g. push-ups before a set of curls): the legs are no reference.
+  if (!up || -up.y < Math.cos(MAX_CAMERA_TILT)) return torsoLean(points);
+  if (state) {
+    if (state.legUp) {
+      up = unit({
+        x: state.legUp.x + (up.x - state.legUp.x) * LEG_SMOOTHING,
+        y: state.legUp.y + (up.y - state.legUp.y) * LEG_SMOOTHING,
+        z: state.legUp.z + (up.z - state.legUp.z) * LEG_SMOOTHING,
+      }) ?? up;
+    }
+    state.legUp = up;
+  }
+  return jointAngle(shoulder, hip, { x: hip.x + up.x, y: hip.y + up.y, z: hip.z + up.z });
+}
+
+/** Per-frame weight of the newest leg direction in standingLean (about 1 s at 30 fps). */
+const LEG_SMOOTHING = 0.05;
+/** Phones tilted further than this from upright are not corrected for (35°). */
+const MAX_CAMERA_TILT = (35 * Math.PI) / 180;
+
+function unit(v) {
+  const len = Math.hypot(v.x, v.y, v.z);
+  return len > 1e-6 ? { x: v.x / len, y: v.y / len, z: v.z / len } : null;
+}
+
 /** Shared check appended to every rep that finishes faster than `minRepMs`. */
 export const TEMPO_CHECK = Object.freeze({
   id: 'too_fast',
@@ -186,7 +230,7 @@ const curl = {
   peak: 60,
   minRepMs: 900,
   partialCue: 'Squeeze all the way to the top',
-  measure(points) {
+  measure(points, state) {
     const sides = visibleSides(points, ARM);
     if (sides.length === 0) return null;
     // The working arm is the one that is most bent, so alternating curls count per arm.
@@ -202,7 +246,7 @@ const curl = {
     return {
       value: working.angle,
       arc: ARM(SIDES[working.side]),
-      metrics: { elbowDrift: working.drift, torsoLean: torsoLean(points) },
+      metrics: { elbowDrift: working.drift, torsoLean: standingLean(points, state) },
     };
   },
   checks: [
@@ -280,7 +324,7 @@ const press = {
   peak: 145,
   minRepMs: 800,
   partialCue: 'Lock out fully overhead',
-  measure(points) {
+  measure(points, state) {
     const sides = visibleSides(points, ARM);
     if (sides.length === 0) return null;
     const arms = sides.map((side) => {
@@ -290,18 +334,22 @@ const press = {
       // Hands down by the sides also read as straight elbows, so treat them as rest.
       return { side, overhead, angle: overhead ? angle : press.rest };
     });
-    const value = arms.reduce((sum, a) => sum + a.angle, 0) / arms.length;
-    const pressing = arms.find((a) => a.overhead);
+    // Single-arm and alternating presses: when only one arm is pushing up (the other hangs
+    // or stays racked at the shoulder), judge that arm alone.
+    const pushing = arms.filter((a) => a.overhead && a.angle > press.rest + 15);
+    const counted = pushing.length === 1 ? pushing : arms;
+    const value = counted.reduce((sum, a) => sum + a.angle, 0) / counted.length;
+    const pressing = pushing[0] ?? arms.find((a) => a.overhead);
 
     let wristImbalance = null;
-    if (sides.length === 2) {
+    if (pushing.length === 2) {
       const shoulderWidth = distance(points[LM.LEFT_SHOULDER], points[LM.RIGHT_SHOULDER]) || 1;
       wristImbalance = Math.abs(points[LM.LEFT_WRIST].y - points[LM.RIGHT_WRIST].y) / shoulderWidth;
     }
     return {
       value,
       arc: pressing ? ARM(SIDES[pressing.side]) : null,
-      metrics: { torsoLean: torsoLean(points), wristImbalance },
+      metrics: { torsoLean: standingLean(points, state), wristImbalance },
     };
   },
   checks: [

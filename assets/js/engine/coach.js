@@ -51,6 +51,8 @@ export class FormCoach {
 
   reset() {
     this.filter.reset();
+    // Scratch space an exercise's measure() can keep between frames (see standingLean).
+    this.measureState = {};
     this.state = 'rest';
     this.reps = 0;
     this.partialReps = 0;
@@ -77,12 +79,14 @@ export class FormCoach {
     if (!pose || !pose.landmarks) return this.snapshot('no_pose', { hint: 'Step into the frame' });
 
     const points = pointsFromPose(pose, aspect);
-    const measurement = this.exercise.measure(points);
+    const measurement = this.exercise.measure(points, this.measureState);
     if (!measurement) return this.snapshot('not_visible', { hint: this.exercise.frameHint });
     if (measurement.ready === false) {
       this.clearFaultTimers();
       return this.snapshot('not_ready', { hint: measurement.hint, arc: measurement.arc });
     }
+    // A corrupt frame (NaN coordinates) would poison the smoothing filter for good.
+    if (!Number.isFinite(measurement.value)) return this.snapshot('not_visible', { hint: this.exercise.frameHint });
 
     const resumedAfterGap = this.lastTrackedAt !== null && timeMs - this.lastTrackedAt > TRACKING_GAP_MS;
     if (resumedAfterGap) {
@@ -122,6 +126,7 @@ export class FormCoach {
           faults: [],
           interrupted: resumedAfterGap,
         };
+        if (progress >= REACHED_PEAK) this.state = 'peak';
       }
       return;
     }
@@ -141,6 +146,7 @@ export class FormCoach {
           maxProgress: rep.maxProgress,
           startedAt: rep.startedAt,
           endedAt: timeMs,
+          faults: [...rep.faults],
         });
       }
       this.state = 'rest';
