@@ -52,6 +52,23 @@ function checkFor(exercise, id) {
 
 const average = (list) => list.reduce((a, b) => a + b, 0) / list.length;
 
+function median(list) {
+  const sorted = [...list].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/**
+ * Time per rep, as the athlete experiences it: the spacing between rep completions. Each rep's
+ * own durationMs only covers the part of the movement the tempo check times. The median keeps
+ * one breather mid-set from inflating it.
+ */
+function repPaceMs(reps) {
+  if (reps.length === 0) return null;
+  if (reps.length === 1) return reps[0].durationMs;
+  return median(reps.slice(1).map((rep, i) => rep.endedAt - reps[i].endedAt));
+}
+
 function summariseSet(set) {
   const { exercise, reps } = set;
   const faults = Object.entries(set.faultCounts)
@@ -68,7 +85,7 @@ function summariseSet(set) {
     partialReps: set.partialReps,
     formScore: reps.length ? Math.round(average(reps.map((r) => r.score))) : null,
     faults,
-    avgRepMs: reps.length ? average(reps.map((r) => r.durationMs)) : null,
+    avgRepMs: repPaceMs(reps),
     startedAt: set.startedAt,
     endedAt: set.lastActivityAt,
     durationMs: set.lastActivityAt - set.startedAt,
@@ -357,7 +374,7 @@ export class AutoCoach {
       cleanReps: reps.filter((r) => r.faults.length === 0).length,
       partialReps: sets.reduce((sum, s) => sum + s.partialReps, 0),
       formScore: reps.length ? Math.round(average(reps.map((r) => r.score))) : null,
-      avgRepMs: reps.length ? average(reps.map((r) => r.durationMs)) : null,
+      avgRepMs: reps.length ? sets.reduce((sum, s) => sum + (s.avgRepMs ?? 0) * s.reps, 0) / reps.length : null,
       faults,
       durationMs: this.firstTrackedAt === null ? 0 : this.lastTrackedAt - this.firstTrackedAt,
     };

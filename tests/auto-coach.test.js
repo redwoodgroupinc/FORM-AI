@@ -306,3 +306,11 @@ test('side-on lunges are lunges even when the far hip is hidden', () => {
   const { coach } = run((t) => hideFarHip(base(t)), 2400 * 3 - 30);
   assert.deepEqual(coach.summary().sets.map((s) => `${s.exerciseId}x${s.reps}`), ['lungex3']);
 });
+
+test('average rep time is the time per rep the athlete actually took', () => {
+  const { coach } = run(reps('squat', { repMs: 3000 }), 3000 * 4 - 30);
+  const [set] = coach.summary().sets;
+  assert.equal(set.reps, 4);
+  assert.ok(Math.abs(set.avgRepMs - 3000) < 100, `set avgRepMs ${set.avgRepMs}`);
+  assert.ok(Math.abs(coach.summary().avgRepMs - 3000) < 100, `workout avgRepMs ${coach.summary().avgRepMs}`);
+});
