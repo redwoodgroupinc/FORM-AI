@@ -1010,6 +1010,8 @@ body.app {
 
 .settings {
   display: grid;
+  /* minmax(0, 1fr) lets long voice names truncate instead of widening the dialog. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
   margin-top: 18px;
 }
@@ -1088,6 +1090,7 @@ body.app {
 
 .select-row {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   padding: 14px 0;
   border-top: 1px solid var(--line);
@@ -1280,4 +1283,87 @@ body.app {
   .intro-privacy {
     display: none;
   }
+}
+
+/* ---------- Subscription ---------- */
+
+.sub-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+}
+
+.sub-row > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.sub-row strong,
+.sub-row small {
+  display: block;
+}
+
+.sub-row small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.sub-row.is-active small {
+  color: var(--accent);
+}
+
+.paywall-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.paywall-list li {
+  display: flex;
+  gap: 10px;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+
+.paywall-list svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.paywall-price {
+  margin-top: 22px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.paywall-terms {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.paywall-demo {
+  display: block;
+  margin: 16px auto 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.paywall [aria-busy='true'] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.sub-row[hidden] + .toggle {
+  border-top: 0;
 }

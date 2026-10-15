@@ -1,8 +1,8 @@
 {
-  "name": "form-ai-coach",
+  "name": "shapecoach",
   "version": "1.0.0",
   "private": true,
-  "description": "Form AI Coach website: real-time rep counting, form checks and voice cues with on-device pose estimation.",
+  "description": "ShapeCoach website and Android app: real-time rep counting, form checks and voice cues with on-device pose estimation.",
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.mjs",

@@ -1,4 +1,4 @@
-# Form AI Coach
+# ShapeCoach
 
 A personal trainer in your phone camera. Prop the phone up, press **Start coaching** and move.
 There is no exercise to pick: the coach recognises what you're doing from your first rep, counts

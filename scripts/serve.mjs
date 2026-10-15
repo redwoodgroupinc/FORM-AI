@@ -44,5 +44,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`Form AI Coach running at http://localhost:${port}`);
+  console.log(`ShapeCoach running at http://localhost:${port}`);
 });

@@ -3,13 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Form AI Coach · Real-time form feedback from your phone camera</title>
+  <title>ShapeCoach · Real-time form feedback from your phone camera</title>
   <meta name="description" content="Prop up your phone, press start and train. Your AI coach recognises the exercise on her own, counts reps, spots bad form like knees caving in or a rounding back, and talks you through it mid-set. Pose estimation runs on your device, so your video stays private.">
   <meta name="theme-color" content="#07080a">
-  <meta property="og:title" content="Form AI Coach">
+  <meta property="og:title" content="ShapeCoach">
   <meta property="og:description" content="Your phone becomes a personal trainer. She recognises your exercise, counts reps, checks your form and talks you through it. Runs on-device.">
   <meta property="og:type" content="website">
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/img/icon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
@@ -39,9 +42,9 @@
 
   <header class="site-header" id="top">
     <nav class="container nav" aria-label="Main">
-      <a class="brand" href="#top" aria-label="Form AI Coach home">
+      <a class="brand" href="#top" aria-label="ShapeCoach home">
         <img class="brand-mark" src="assets/img/favicon.svg" alt="" width="32" height="32">
-        <span class="brand-name">Form <span>AI</span> Coach</span>
+        <span class="brand-name">Shape<span>Coach</span></span>
       </a>
       <ul class="nav-links" id="nav-links">
         <li><a href="#how">How it works</a></li>
@@ -86,7 +89,7 @@
             <li><svg aria-hidden="true"><use href="#i-check"/></svg> No exercise to pick</li>
             <li><svg aria-hidden="true"><use href="#i-check"/></svg> Works in your browser today</li>
             <li><svg aria-hidden="true"><use href="#i-check"/></svg> No account needed</li>
-            <li><svg aria-hidden="true"><use href="#i-check"/></svg> iOS &amp; Android apps coming soon</li>
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> Android app coming to Google Play</li>
           </ul>
         </div>
 
@@ -203,7 +206,7 @@
           <article class="feature reveal">
             <span class="feature-icon is-cyan"><svg aria-hidden="true"><use href="#i-lock"/></svg></span>
             <h3>Private by design</h3>
-            <p>Pose estimation runs on your device with Google ML Kit and MediaPipe. Your video never leaves your phone.</p>
+            <p>Pose estimation runs on your device with Google's MediaPipe. Your video never leaves your phone.</p>
           </article>
           <article class="feature reveal">
             <span class="feature-icon"><svg aria-hidden="true"><use href="#i-chart"/></svg></span>
@@ -221,7 +224,7 @@
           <span class="eyebrow">Privacy</span>
           <h2>Your camera feed never leaves your phone.</h2>
           <p>
-            Form AI Coach uses on-device pose estimation (Google ML Kit on mobile, MediaPipe on the web).
+            ShapeCoach uses on-device pose estimation (Google's MediaPipe).
             The model turns each frame into 33 body coordinates right on your device. Only those numbers
             are used to coach you. Video is never recorded, uploaded or stored.
           </p>
@@ -234,7 +237,7 @@
         <div class="pipeline reveal" role="group" aria-label="Processing pipeline: camera, on-device model, joint angles, coach. Nothing goes to the cloud.">
           <div class="pipe-step"><span class="pipe-icon"><svg aria-hidden="true"><use href="#i-camera"/></svg></span><div><strong>Camera frame</strong><small>Stays in memory for one frame</small></div></div>
           <div class="pipe-line" aria-hidden="true"></div>
-          <div class="pipe-step"><span class="pipe-icon is-accent"><svg aria-hidden="true"><use href="#i-cpu"/></svg></span><div><strong>On-device pose model</strong><small>ML Kit / MediaPipe BlazePose</small></div></div>
+          <div class="pipe-step"><span class="pipe-icon is-accent"><svg aria-hidden="true"><use href="#i-cpu"/></svg></span><div><strong>On-device pose model</strong><small>MediaPipe BlazePose</small></div></div>
           <div class="pipe-line" aria-hidden="true"></div>
           <div class="pipe-step"><span class="pipe-icon"><svg aria-hidden="true"><use href="#i-pose"/></svg></span><div><strong>33 landmarks → joint angles</strong><small>Just numbers, no pixels</small></div></div>
           <div class="pipe-line" aria-hidden="true"></div>
@@ -250,7 +253,7 @@
         <header class="section-head">
           <span class="eyebrow">Better together</span>
           <h2>Snap your meals. Perfect your reps.</h2>
-          <p>Form AI Coach is built to pair with the My Diet camera. One camera-first routine for what you eat and how you train.</p>
+          <p>ShapeCoach is built to pair with the My Diet camera. One camera-first routine for what you eat and how you train.</p>
         </header>
         <div class="pair">
           <article class="pair-card reveal">
@@ -265,7 +268,7 @@
           <div class="pair-plus" aria-hidden="true"><svg><use href="#i-plus"/></svg></div>
           <article class="pair-card is-accent reveal">
             <span class="pair-icon"><svg aria-hidden="true"><use href="#i-pose"/></svg></span>
-            <h3>Form AI Coach</h3>
+            <h3>ShapeCoach</h3>
             <p>Prop up your phone and get coached through every rep.</p>
             <ul class="checklist small">
               <li><svg aria-hidden="true"><use href="#i-check"/></svg> Real-time rep counting and form checks</li>
@@ -310,11 +313,15 @@
           </details>
           <details>
             <summary>Does it work offline?</summary>
-            <p>The mobile apps bundle the pose model, so they work fully offline. The web version downloads the pose engine and model once (about 17 MB) and your browser caches them for next time.</p>
+            <p>ShapeCoach downloads its pose engine and model once (about 17 MB) and keeps them for next time, so later sessions start quickly. You need a connection to open it. Once a session has started, it keeps coaching if your connection drops.</p>
+          </details>
+          <details>
+            <summary>How much does it cost?</summary>
+            <p>The demo is free. In the Android app, the live coach is part of ShapeCoach Premium: US$14.99 a month through Google Play (the price in your currency is shown before you pay). It renews monthly until you cancel, which you can do at any time in Google Play under Payments &amp; subscriptions.</p>
           </details>
           <details>
             <summary>Is this a replacement for a coach or physiotherapist?</summary>
-            <p>No. Form AI Coach gives general technique feedback to help you train more consistently. It is not medical advice. If something hurts, stop and talk to a qualified professional.</p>
+            <p>No. ShapeCoach gives general technique feedback to help you train more consistently. It is not medical advice. If something hurts, stop and talk to a qualified professional.</p>
           </details>
         </div>
       </div>
@@ -346,7 +353,7 @@
       <div class="footer-grid">
         <a class="brand" href="#top">
           <img class="brand-mark" src="assets/img/favicon.svg" alt="" width="32" height="32">
-          <span class="brand-name">Form <span>AI</span> Coach</span>
+          <span class="brand-name">Shape<span>Coach</span></span>
         </a>
         <ul class="footer-links">
           <li><a href="app.html">Live coach</a></li>
@@ -354,11 +361,13 @@
           <li><a href="#privacy">Privacy</a></li>
           <li><a href="#my-diet">My Diet</a></li>
           <li><a href="#faq">FAQ</a></li>
+          <li><a href="privacy.html">Privacy policy</a></li>
+          <li><a href="terms.html">Terms</a></li>
         </ul>
       </div>
       <p class="footer-note">
-        © <span id="year">2026</span> Form AI Coach. Form feedback is for general fitness guidance only and is not medical advice.
-        Pose estimation powered by on-device BlazePose models (Google ML Kit / MediaPipe).
+        © <span id="year">2026</span> ShapeCoach. Form feedback is for general fitness guidance only and is not medical advice.
+        Pose estimation powered by on-device BlazePose models (Google MediaPipe).
       </p>
     </div>
   </footer>

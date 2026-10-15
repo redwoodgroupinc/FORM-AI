@@ -7,6 +7,9 @@ import { drawSkeleton, faultJointsFor } from '../render/skeleton.js';
 import { createPoseDetector } from './pose-detector.js';
 import { VoiceCoach, PRIORITY } from './voice.js';
 import { storage } from './storage.js';
+import {
+  inAndroidApp, premiumStatus, subscribe, acknowledgeOwned, MANAGE_URL, LIST_PRICE,
+} from './billing.js';
 import { probeEnvironment, evaluate, renderCheck } from '../compat.js';
 
 const SETTINGS_KEY = 'formai.settings.v1';
@@ -335,6 +338,10 @@ async function openCamera() {
 async function startCamera() {
   hideError();
   voice.unlock();
+  if (!(await hasPremium())) {
+    openPaywall('camera');
+    return;
+  }
   if (!navigator.mediaDevices?.getUserMedia) {
     showError(ENV.inApp
       ? IN_APP_MESSAGE
@@ -906,8 +913,7 @@ function renderWorkoutSets() {
 
 function saveHistory(set) {
   if (!set || (set.reps === 0 && set.partialReps === 0)) return;
-  const history = storage.get(HISTORY_KEY, []);
-  const list = Array.isArray(history) ? history : [];
+  const list = readHistory();
   list.unshift({
     at: Date.now(),
     exerciseId: set.exerciseId,
@@ -924,9 +930,15 @@ const dateFormat = new Intl.DateTimeFormat(undefined, {
   month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
 });
 
-function renderHistory() {
+/** Stored sets that can be shown; anything malformed (old versions, manual edits) is skipped. */
+function readHistory() {
   const history = storage.get(HISTORY_KEY, []);
-  const list = Array.isArray(history) ? history.slice(0, 6) : [];
+  return (Array.isArray(history) ? history : [])
+    .filter((item) => item && typeof item === 'object' && Number.isFinite(new Date(item.at).getTime()));
+}
+
+function renderHistory() {
+  const list = readHistory().slice(0, 6);
   if (list.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty';
@@ -1140,6 +1152,138 @@ function bindSettings() {
 }
 
 // ---------------------------------------------------------------------------
+// ShapeCoach Premium (sold through Google Play inside the Android app; see billing.js)
+
+const premium = {
+  required: inAndroidApp(window),
+  active: false,
+  billing: false,
+  price: LIST_PRICE,
+  checking: null,
+  afterPurchase: null,
+};
+const paywall = {
+  dialog: $('paywall-dialog'),
+  price: $('paywall-price'),
+  error: $('paywall-error'),
+  subscribe: $('paywall-subscribe'),
+  restore: $('paywall-restore'),
+};
+
+/** Ask Google Play for the current subscription state (once at a time). */
+function refreshPremium() {
+  if (!premium.required) return Promise.resolve(premium);
+  premium.checking ??= premiumStatus(window).then((status) => {
+    Object.assign(premium, status);
+    if (status.purchases.length) acknowledgeOwned(status.purchases, { storage });
+    renderPremium();
+    return premium;
+  }).finally(() => { premium.checking = null; });
+  return premium.checking;
+}
+
+async function hasPremium() {
+  if (!premium.required || premium.active) return true;
+  await refreshPremium();
+  return premium.active;
+}
+
+function renderPremium() {
+  paywall.price.textContent = premium.price;
+  const row = $('sub-row');
+  row.hidden = !premium.required;
+  if (!premium.required) return;
+  row.classList.toggle('is-active', premium.active);
+  $('sub-status').textContent = premium.active
+    ? 'Active. Thanks for training with ShapeCoach.'
+    : `Not subscribed · ${premium.price}`;
+  $('sub-manage').href = MANAGE_URL;
+  $('sub-manage').hidden = !premium.active;
+  $('sub-subscribe').hidden = premium.active;
+}
+
+function showPaywallError(message) {
+  paywall.error.textContent = message;
+  paywall.error.hidden = !message;
+}
+
+function setPaywallBusy(busy) {
+  for (const button of [paywall.subscribe, paywall.restore]) {
+    button.disabled = busy;
+    button.setAttribute('aria-busy', String(busy));
+  }
+}
+
+function openPaywall(afterPurchase = null) {
+  premium.afterPurchase = afterPurchase;
+  showPaywallError('');
+  renderPremium();
+  if (!paywall.dialog.open) paywall.dialog.showModal();
+}
+
+function unlocked() {
+  paywall.dialog.close('unlocked');
+  showCue('ShapeCoach Premium is active', 'good', performance.now(), 2200);
+  const next = premium.afterPurchase;
+  premium.afterPurchase = null;
+  if (next === 'camera') startCamera();
+}
+
+async function onSubscribe() {
+  showPaywallError('');
+  if (!premium.billing) {
+    await refreshPremium();
+    if (!premium.billing) {
+      showPaywallError("Google Play billing isn't available right now. Update the Google Play Store and Chrome, then reopen ShapeCoach.");
+      return;
+    }
+  }
+  setPaywallBusy(true);
+  try {
+    const result = await subscribe(window);
+    if (result.cancelled) return;
+    await refreshPremium();
+    if (premium.active) unlocked();
+    else showPaywallError("Your payment went through, but Google Play hasn't confirmed it yet. Wait a moment, then tap Restore purchase.");
+  } catch (error) {
+    console.error(error);
+    showPaywallError("Google Play couldn't start the purchase. Check that you're signed in to the Play Store, then try again.");
+  } finally {
+    setPaywallBusy(false);
+  }
+}
+
+async function onRestore() {
+  showPaywallError('');
+  setPaywallBusy(true);
+  try {
+    await refreshPremium();
+    if (premium.active) unlocked();
+    else if (!premium.billing) showPaywallError("Google Play billing isn't available right now. Update the Google Play Store and Chrome, then reopen ShapeCoach.");
+    else showPaywallError('No ShapeCoach Premium subscription was found for the Google account on this phone.');
+  } finally {
+    setPaywallBusy(false);
+  }
+}
+
+paywall.subscribe.addEventListener('click', onSubscribe);
+paywall.restore.addEventListener('click', onRestore);
+paywall.dialog.addEventListener('close', () => {
+  if (paywall.dialog.returnValue === 'demo') startDemo();
+});
+$('sub-subscribe').addEventListener('click', () => {
+  els.settingsDialog.close();
+  openPaywall();
+});
+// Video analysis is part of Premium too: stop the file picker and show the offer instead.
+$('video-file').addEventListener('click', (event) => {
+  if (premium.required && !premium.active) {
+    event.preventDefault();
+    openPaywall();
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Wire up
 
 $('start-camera').addEventListener('click', startCamera);
@@ -1176,7 +1320,10 @@ els.video.addEventListener('resize', () => {
 
 renderIntro();
 resetWorkoutUI();
-renderHistory();
+// Settings first: they must work even if stored history turns out to be unreadable.
 bindSettings();
+renderHistory();
+renderPremium();
+refreshPremium();
 
 if (params.has('demo')) startDemo();
