@@ -1324,6 +1324,10 @@ resetWorkoutUI();
 bindSettings();
 renderHistory();
 renderPremium();
-refreshPremium();
+// In the Android app the download is free and the coach is paid: show the Premium offer as soon
+// as the app opens, unless this person already subscribes.
+refreshPremium().then(() => {
+  if (premium.required && !premium.active && !params.has('demo')) openPaywall('camera');
+});
 
 if (params.has('demo')) startDemo();

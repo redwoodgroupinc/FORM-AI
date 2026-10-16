@@ -4,7 +4,8 @@ ShapeCoach for Android is a **Trusted Web Activity**: a small Android app that o
 `https://shapecoach-theta.vercel.app/app.html?source=android` full screen in Chrome. The camera,
 the on-device pose model and the coach's voice work exactly as on the website. Inside the app,
 the live coach and video analysis need **ShapeCoach Premium**, a US$14.99 monthly subscription
-sold through Google Play Billing. The demo stays free.
+sold through Google Play Billing. The download is free; the Premium screen opens as soon as the app
+starts (for anyone not yet subscribed). The demo stays free.
 
 | What | Value |
 | --- | --- |
@@ -92,17 +93,17 @@ Check it with Google's tool:
 
 1. Settings → **License testing**: add the Gmail accounts of your testers. Their purchases are free
    test purchases that renew every few minutes.
-2. Install the app from the test track's opt-in link, tap **Start coaching**, subscribe, and check
-   the coach unlocks. Settings → ShapeCoach Premium shows *Active* and a **Manage** link.
+2. Install the app from the test track's opt-in link and open it: the ShapeCoach Premium screen
+   appears straight away. Subscribe and check the coach unlocks. Settings → ShapeCoach Premium shows *Active* and a **Manage** link.
 3. In Play Console → Order management, the test order should show as acknowledged.
 
 ## 8. App content (Policy → App content)
 
 - **Privacy policy**: `https://shapecoach-theta.vercel.app/privacy.html`
 - **Ads**: no ads.
-- **App access**: all features can be reviewed without an account. Tell reviewers that the free
-  demo (*Watch a demo*) shows the full coaching experience, and that the live camera coach is part
-  of ShapeCoach Premium.
+- **App access**: all features can be reviewed without an account. Tell reviewers that the app
+  opens on the ShapeCoach Premium screen, that its free demo link (*Watch a demo*) shows the full
+  coaching experience, and that the live camera coach is part of ShapeCoach Premium.
 - **Data safety**: camera frames are processed on the device and never leave it; settings and set
   history stay on the device; there are no accounts, analytics or ads. Purchases are processed by
   Google Play, and the purchase token is only checked with Google and not stored. Review the form
