@@ -5,12 +5,15 @@ There is no exercise to pick: the coach recognises what you're doing from your f
 reps, spots bad form ("knees caving in", "back rounding") and talks you through it mid-set in a
 female voice. Pose estimation runs **on-device**, so video never leaves the phone.
 
-This repository is the website:
+This repository is the website, its API function and the Android app:
 
-| Page | What it is |
+| Part | What it is |
 | --- | --- |
 | `index.html` | Marketing landing page. The animated phone in the hero is a procedural athlete switching between squats, presses and curls, recognised live by the real coaching engine. It isn't a video. |
 | `app.html` | The working coach. One Start button, then automatic exercise recognition. Camera, video-file and demo modes, live HUD, her voice cues, per-set summaries and history. |
+| `privacy.html`, `terms.html` | Privacy policy and terms, including the ShapeCoach Premium subscription terms. |
+| `api/verify-purchase.js` | Vercel function that verifies and acknowledges Google Play purchases. |
+| `android/` | The Android app: a Trusted Web Activity around `app.html` with Google Play Billing. See [docs/PLAY_STORE.md](docs/PLAY_STORE.md). |
 
 ## Run it locally
 
@@ -49,8 +52,9 @@ The tiers come from OS support lists and chip generations, not device testing. R
 
 ## Deploy
 
-Any static host works (GitHub Pages, Netlify, Vercel, Cloudflare Pages, S3). For GitHub Pages:
-**Settings → Pages → Deploy from a branch**, pick the branch and `/ (root)`.
+The site is deployed on Vercel (project `shapecoach`, https://shapecoach-theta.vercel.app), which
+also runs `api/verify-purchase.js`. The pages themselves work on any static host, but the Android
+app's subscription needs that function and `.well-known/assetlinks.json` on the app's domain.
 
 ## How it works
 
@@ -167,17 +171,36 @@ assets/
     auto-coach.js AutoCoach: runs every exercise's coach, accepts recognised reps, builds sets
   js/demo/        procedural athlete (all five exercises, with faults) for the hero, demo and tests
   js/render/      canvas skeleton / fault / angle renderer
-  js/app/         camera + MediaPipe wrapper, her voice + female-voice selection, storage, controller
+  js/app/         camera + MediaPipe wrapper, her voice + female-voice selection, storage,
+                  Google Play billing (billing.js), controller
+  js/compat.js    device check shown on the coach's start screen
   js/landing.js   landing page behaviour and live hero preview
+api/              Vercel function: verify and acknowledge Google Play purchases
+android/          Android app (Trusted Web Activity with Play Billing)
+.well-known/      Digital Asset Links linking the site to the Android app
+docs/             Google Play publishing guide
+store/            Play Store icon, feature graphic and screenshots
 tests/            node:test suites
-scripts/serve.mjs zero-dependency static dev server
+scripts/          dev server, Android bundle signing
 ```
 
-## Mobile apps
+## Android app and ShapeCoach Premium
 
-Google ML Kit Pose Detection (iOS and Android) outputs the same 33-point BlazePose topology as
-MediaPipe, so `assets/js/engine` maps directly onto the native apps. Port the exercise
-thresholds and checks as they are, and feed them ML Kit's 3D landmarks.
+`android/` is a [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap) Trusted Web Activity
+(package `net.shapecoach.app`) that opens `app.html?source=android` in Chrome, so the camera,
+pose model and voice behave exactly as on the web. Inside the app, the live coach and video
+analysis need **ShapeCoach Premium** (`shapecoach_premium`, US$14.99 a month), sold through Google
+Play Billing via the Digital Goods and Payment Request APIs (`assets/js/app/billing.js`). Each
+purchase is acknowledged by `api/verify-purchase.js`; Play refunds unacknowledged subscriptions
+after three days. The demo stays free, and the website in a normal browser is not gated.
+
+The *Android app* workflow builds the unsigned release bundle and publishes it to the
+`android-build` branch; it is signed with the upload key outside this repository
+(`scripts/sign-android.sh`). Publishing steps, the subscription setup and the store listing are in
+[docs/PLAY_STORE.md](docs/PLAY_STORE.md); store graphics are in `store/`.
+
+A future native app can reuse `assets/js/engine` as is: Google ML Kit Pose Detection outputs the
+same 33-point BlazePose topology as MediaPipe.
 
 ## Privacy
 
