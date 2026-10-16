@@ -1,0 +1,3 @@
+Unsigned ShapeCoach release bundle
+Source commit: d8f31ce3652443e2de406821cdb3a8ef1b7c07f0
+Branch: claude/gracious-tesla-sxbboh
