@@ -1,0 +1,47 @@
+{
+  "packageId": "net.shapecoach.app",
+  "host": "shapecoach-theta.vercel.app",
+  "name": "ShapeCoach",
+  "launcherName": "ShapeCoach",
+  "display": "standalone",
+  "themeColor": "#07080A",
+  "themeColorDark": "#07080A",
+  "navigationColor": "#07080A",
+  "navigationColorDark": "#07080A",
+  "navigationDividerColor": "#07080A",
+  "navigationDividerColorDark": "#07080A",
+  "backgroundColor": "#07080A",
+  "enableNotifications": false,
+  "startUrl": "/app.html?source=android",
+  "iconUrl": "https://shapecoach-theta.vercel.app/assets/img/icon-512.png",
+  "maskableIconUrl": "https://shapecoach-theta.vercel.app/assets/img/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./upload-keystore.jks",
+    "alias": "upload"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://shapecoach-theta.vercel.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {
+    "playBilling": {
+      "enabled": true
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 23,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "displayOverride": [],
+  "appVersion": "1.0.0"
+}
