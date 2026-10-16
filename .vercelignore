@@ -1,0 +1,7 @@
+# Only the website and its API function are deployed; the Android project, tests and
+# store assets stay in the repository.
+android
+tests
+store
+scripts
+docs

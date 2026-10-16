@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ShapeCoach · Real-time form feedback from your phone camera</title>
+  <meta name="description" content="Prop up your phone, press start and train. Your AI coach recognises the exercise on her own, counts reps, spots bad form like knees caving in or a rounding back, and talks you through it mid-set. Pose estimation runs on your device, so your video stays private.">
+  <meta name="theme-color" content="#07080a">
+  <meta property="og:title" content="ShapeCoach">
+  <meta property="og:description" content="Your phone becomes a personal trainer. She recognises your exercise, counts reps, checks your form and talks you through it. Runs on-device.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/img/icon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/landing.css">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+  <svg class="sprite" width="0" height="0" aria-hidden="true">
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-pose" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"/><path d="M12 7v6M7 9.5l5 1 5-1M12 13l-3.5 4 1 4M12 13l3.5 4-1 4"/></g></symbol>
+    <symbol id="i-voice" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></g></symbol>
+    <symbol id="i-count" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.5l2.3 2.3 4.7-5"/></g></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2.8 19.5h18.4z"/><path d="M12 10v4M12 16.8v.2"/></g></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></g></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M7 16v-4M12 16V7M17 16v-6"/></g></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2.5h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></g></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9.5 9.5h5v5h-5zM9 2.5V6M15 2.5V6M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/></g></symbol>
+    <symbol id="i-cloud-off" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18h10.5a3.5 3.5 0 0 0 .6-6.95A6 6 0 0 0 6.6 10.2 4 4 0 0 0 7 18z"/><path d="M3 3l18 18"/></g></symbol>
+    <symbol id="i-plate" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/></g></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  </svg>
+
+  <header class="site-header" id="top">
+    <nav class="container nav" aria-label="Main">
+      <a class="brand" href="#top" aria-label="ShapeCoach home">
+        <img class="brand-mark" src="assets/img/favicon.svg" alt="" width="32" height="32">
+        <span class="brand-name">Shape<span>Coach</span></span>
+      </a>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#how">How it works</a></li>
+        <li><a href="#privacy">Privacy</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a class="nav-cta" href="app.html">Try it live</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a class="btn btn-primary btn-sm" href="app.html">Try it live</a>
+        <button class="btn btn-ghost btn-icon nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">
+          <svg aria-hidden="true"><use href="#i-menu"/></svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <span class="pill hero-badge"><span class="dot"></span> On-device AI · No video uploads</span>
+          <h1>A personal trainer that <em>watches every rep.</em></h1>
+          <p class="hero-lede">
+            Prop up your phone, press start and move. There's no exercise to pick: your coach
+            recognises what you're doing on her own, counts every rep, catches bad form like
+            <strong>knees caving in</strong> or a <strong>rounding back</strong>, and talks you
+            through it mid-set.
+          </p>
+          <div class="hero-ctas">
+            <a class="btn btn-primary btn-lg" href="app.html">
+              Start coaching
+              <svg aria-hidden="true"><use href="#i-arrow"/></svg>
+            </a>
+            <a class="btn btn-lg" href="app.html?demo=1">
+              <svg aria-hidden="true"><use href="#i-play"/></svg>
+              Watch a demo
+            </a>
+          </div>
+          <ul class="hero-proof">
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> No exercise to pick</li>
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> Works in your browser today</li>
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> No account needed</li>
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> Android app coming to Google Play</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual">
+          <div class="phone" role="img" aria-label="Animated preview: the coach recognises squats, overhead presses and bicep curls on her own, counts reps and flags form faults">
+            <div class="phone-screen">
+              <canvas id="hero-canvas" width="540" height="960" aria-hidden="true"></canvas>
+              <div class="phone-hud" aria-hidden="true">
+                <div class="hud-top">
+                  <span class="pill hud-pill"><span class="dot"></span> <span id="hero-exercise">Detecting…</span></span>
+                  <span class="hud-score"><b id="hero-score">--</b><small>form</small></span>
+                </div>
+                <div class="hero-cue" id="hero-cue">
+                  <svg><use href="#i-voice"/></svg>
+                  <span id="hero-cue-text">Push your knees out</span>
+                </div>
+                <div class="hud-bottom">
+                  <div class="hud-reps"><span id="hero-reps">0</span><small>reps</small></div>
+                  <div class="hud-depth" title="Depth">
+                    <div class="hud-depth-fill" id="hero-depth"></div>
+                    <span class="hud-depth-target"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="float-card float-a" aria-hidden="true">
+            <span class="float-icon"><svg><use href="#i-voice"/></svg></span>
+            <div>
+              <small>She says</small>
+              <strong id="hero-voice">“I'm watching. Start any exercise.”</strong>
+            </div>
+          </div>
+          <div class="float-card float-b" aria-hidden="true">
+            <span class="float-icon is-cyan"><svg><use href="#i-cpu"/></svg></span>
+            <div>
+              <small>Processed on device</small>
+              <strong>0 frames uploaded</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats" aria-label="Key numbers">
+      <div class="container stats-grid">
+        <div class="stat"><strong>33</strong><span>body landmarks tracked every frame</span></div>
+        <div class="stat"><strong>30<small>fps</small></strong><span>real-time tracking on a modern phone</span></div>
+        <div class="stat"><strong>0</strong><span>video frames sent to a server</span></div>
+        <div class="stat"><strong>5</strong><span>exercises recognised automatically</span></div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section" id="how">
+      <div class="container">
+        <header class="section-head">
+          <span class="eyebrow">How it works</span>
+          <h2>Press start. She does the rest.</h2>
+          <p>No wearables, no menus, no guesswork. Just the camera you already carry.</p>
+        </header>
+        <ol class="steps">
+          <li class="step reveal">
+            <span class="step-num">01</span>
+            <span class="step-icon"><svg aria-hidden="true"><use href="#i-phone"/></svg></span>
+            <h3>Prop up your phone</h3>
+            <p>Lean it against a water bottle 2–3 m away so your whole body is in frame, and press start. There's nothing to choose.</p>
+          </li>
+          <li class="step reveal">
+            <span class="step-num">02</span>
+            <span class="step-icon"><svg aria-hidden="true"><use href="#i-pose"/></svg></span>
+            <h3>Just start moving</h3>
+            <p>She tracks 33 points on your body on-device and recognises squats, push-ups, lunges, curls or presses from your very first rep.</p>
+          </li>
+          <li class="step reveal">
+            <span class="step-num">03</span>
+            <span class="step-icon"><svg aria-hidden="true"><use href="#i-voice"/></svg></span>
+            <h3>Listen to her</h3>
+            <p>She counts your reps out loud and gives short cues like “Chest up” or “Push your knees out” the moment they matter. No need to look at the screen.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section section-alt" id="features">
+      <div class="container">
+        <header class="section-head">
+          <span class="eyebrow">Features</span>
+          <h2>Everything a good spotter does, built into your camera.</h2>
+        </header>
+        <div class="features">
+          <article class="feature reveal">
+            <span class="feature-icon is-cyan"><svg aria-hidden="true"><use href="#i-pose"/></svg></span>
+            <h3>Knows what you're doing</h3>
+            <p>No menus. She recognises the exercise from your movement, and starts a new set when you switch or rest.</p>
+          </article>
+          <article class="feature reveal">
+            <span class="feature-icon"><svg aria-hidden="true"><use href="#i-count"/></svg></span>
+            <h3>Reps that actually count</h3>
+            <p>Only full-range reps get counted. Half reps are flagged, so your numbers mean something.</p>
+          </article>
+          <article class="feature reveal">
+            <span class="feature-icon is-danger"><svg aria-hidden="true"><use href="#i-alert"/></svg></span>
+            <h3>Real-time form checks</h3>
+            <p>Knees caving in, back rounding, hips sagging, elbows drifting, swinging and rushing, all caught as they happen.</p>
+          </article>
+          <article class="feature reveal">
+            <span class="feature-icon"><svg aria-hidden="true"><use href="#i-voice"/></svg></span>
+            <h3>Her voice, mid-set</h3>
+            <p>A female coach's voice counts your reps and calls out corrections, timed so they never talk over each other.</p>
+          </article>
+          <article class="feature reveal">
+            <span class="feature-icon is-cyan"><svg aria-hidden="true"><use href="#i-lock"/></svg></span>
+            <h3>Private by design</h3>
+            <p>Pose estimation runs on your device with Google's MediaPipe. Your video never leaves your phone.</p>
+          </article>
+          <article class="feature reveal">
+            <span class="feature-icon"><svg aria-hidden="true"><use href="#i-chart"/></svg></span>
+            <h3>Set reports</h3>
+            <p>Form score, clean versus flagged reps, tempo, and the one thing to focus on in your next set.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Privacy -->
+    <section class="section" id="privacy">
+      <div class="container privacy">
+        <div class="privacy-copy">
+          <span class="eyebrow">Privacy</span>
+          <h2>Your camera feed never leaves your phone.</h2>
+          <p>
+            ShapeCoach uses on-device pose estimation (Google's MediaPipe).
+            The model turns each frame into 33 body coordinates right on your device. Only those numbers
+            are used to coach you. Video is never recorded, uploaded or stored.
+          </p>
+          <ul class="checklist">
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> No video upload, ever. Works with your connection off once loaded.</li>
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> No account needed to train.</li>
+            <li><svg aria-hidden="true"><use href="#i-check"/></svg> Set history stays on your device. Clear it any time.</li>
+          </ul>
+        </div>
+        <div class="pipeline reveal" role="group" aria-label="Processing pipeline: camera, on-device model, joint angles, coach. Nothing goes to the cloud.">
+          <div class="pipe-step"><span class="pipe-icon"><svg aria-hidden="true"><use href="#i-camera"/></svg></span><div><strong>Camera frame</strong><small>Stays in memory for one frame</small></div></div>
+          <div class="pipe-line" aria-hidden="true"></div>
+          <div class="pipe-step"><span class="pipe-icon is-accent"><svg aria-hidden="true"><use href="#i-cpu"/></svg></span><div><strong>On-device pose model</strong><small>MediaPipe BlazePose</small></div></div>
+          <div class="pipe-line" aria-hidden="true"></div>
+          <div class="pipe-step"><span class="pipe-icon"><svg aria-hidden="true"><use href="#i-pose"/></svg></span><div><strong>33 landmarks → joint angles</strong><small>Just numbers, no pixels</small></div></div>
+          <div class="pipe-line" aria-hidden="true"></div>
+          <div class="pipe-step"><span class="pipe-icon"><svg aria-hidden="true"><use href="#i-voice"/></svg></span><div><strong>Reps, form checks, voice cues</strong><small>Computed locally in real time</small></div></div>
+          <div class="pipe-cloud"><svg aria-hidden="true"><use href="#i-cloud-off"/></svg> Cloud upload: none</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- My Diet -->
+    <section class="section section-alt" id="my-diet">
+      <div class="container">
+        <header class="section-head">
+          <span class="eyebrow">Better together</span>
+          <h2>Snap your meals. Perfect your reps.</h2>
+          <p>ShapeCoach is built to pair with the My Diet camera. One camera-first routine for what you eat and how you train.</p>
+        </header>
+        <div class="pair">
+          <article class="pair-card reveal">
+            <span class="pair-icon"><svg aria-hidden="true"><use href="#i-plate"/></svg></span>
+            <h3>My Diet</h3>
+            <p>Point your camera at a meal and log it in seconds.</p>
+            <ul class="checklist small">
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg> Camera food logging</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg> Daily nutrition targets</li>
+            </ul>
+          </article>
+          <div class="pair-plus" aria-hidden="true"><svg><use href="#i-plus"/></svg></div>
+          <article class="pair-card is-accent reveal">
+            <span class="pair-icon"><svg aria-hidden="true"><use href="#i-pose"/></svg></span>
+            <h3>ShapeCoach</h3>
+            <p>Prop up your phone and get coached through every rep.</p>
+            <ul class="checklist small">
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg> Real-time rep counting and form checks</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg> Workouts that can feed your daily targets <span class="soon">Coming soon</span></li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="container faq-wrap">
+        <header class="section-head">
+          <span class="eyebrow">FAQ</span>
+          <h2>Questions, answered.</h2>
+        </header>
+        <div class="faq">
+          <details>
+            <summary>Do I have to choose an exercise?</summary>
+            <p>No. Press start and begin moving. She recognises squats, push-ups, lunges, bicep curls and overhead presses from your first rep, counts it, and keeps coaching as you switch between them. Each exercise becomes its own set.</p>
+          </details>
+          <details>
+            <summary>Do I need any equipment?</summary>
+            <p>Just a phone or laptop with a camera. Prop it somewhere stable, like against a water bottle or on a shelf, so your whole body is in frame.</p>
+          </details>
+          <details>
+            <summary>Is my video uploaded anywhere?</summary>
+            <p>No. Pose estimation runs on your device. Each frame becomes 33 body coordinates in memory, and only those numbers are used to count reps and check form. Nothing is recorded or sent to a server.</p>
+          </details>
+          <details>
+            <summary>Where should I put my phone?</summary>
+            <p>About 2–3 metres away, around hip height. Squats work best at a 45° angle so both depth and knee tracking are visible. Push-ups and lunges work best side-on. Curls and presses work best facing the camera. If she can't see what she needs, she'll tell you.</p>
+          </details>
+          <details>
+            <summary>How accurate is the rep counting?</summary>
+            <p>Reps are counted from joint angles, so a rep only counts once you reach full range and return to the start. Accuracy is best with your full body in frame, decent lighting and fitted clothing. Baggy clothes and very dark rooms make tracking harder.</p>
+          </details>
+          <details>
+            <summary>Can I change her voice?</summary>
+            <p>She automatically uses the best female voice your phone or browser offers. You can pick a different one, or turn voice off, in the coach's settings.</p>
+          </details>
+          <details>
+            <summary>Does it work offline?</summary>
+            <p>ShapeCoach downloads its pose engine and model once (about 17 MB) and keeps them for next time, so later sessions start quickly. You need a connection to open it. Once a session has started, it keeps coaching if your connection drops.</p>
+          </details>
+          <details>
+            <summary>How much does it cost?</summary>
+            <p>The demo is free. In the Android app, the live coach is part of ShapeCoach Premium: US$14.99 a month through Google Play (the price in your currency is shown before you pay). It renews monthly until you cancel, which you can do at any time in Google Play under Payments &amp; subscriptions.</p>
+          </details>
+          <details>
+            <summary>Is this a replacement for a coach or physiotherapist?</summary>
+            <p>No. ShapeCoach gives general technique feedback to help you train more consistently. It is not medical advice. If something hurts, stop and talk to a qualified professional.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+      <div class="container">
+        <div class="cta-card reveal">
+          <h2>Your next set, coached.</h2>
+          <p>Open the coach, prop up your phone, press start and do five squats. She'll recognise them on the first rep.</p>
+          <div class="hero-ctas">
+            <a class="btn btn-primary btn-lg" href="app.html">
+              Launch the live coach
+              <svg aria-hidden="true"><use href="#i-arrow"/></svg>
+            </a>
+            <span class="store-row">
+              <span class="store-badge"><small>Coming soon</small> App Store</span>
+              <span class="store-badge"><small>Coming soon</small> Google Play</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <a class="brand" href="#top">
+          <img class="brand-mark" src="assets/img/favicon.svg" alt="" width="32" height="32">
+          <span class="brand-name">Shape<span>Coach</span></span>
+        </a>
+        <ul class="footer-links">
+          <li><a href="app.html">Live coach</a></li>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#privacy">Privacy</a></li>
+          <li><a href="#my-diet">My Diet</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="privacy.html">Privacy policy</a></li>
+          <li><a href="terms.html">Terms</a></li>
+        </ul>
+      </div>
+      <p class="footer-note">
+        © <span id="year">2026</span> ShapeCoach. Form feedback is for general fitness guidance only and is not medical advice.
+        Pose estimation powered by on-device BlazePose models (Google MediaPipe).
+      </p>
+    </div>
+  </footer>
+
+  <script type="module" src="assets/js/landing.js"></script>
+</body>
+</html>
