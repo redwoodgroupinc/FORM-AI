@@ -37,7 +37,8 @@ test('the app is recognised from its launch URL or referrer, and remembered for 
 
 test('prices and periods are shown the way Google Play reports them', () => {
   assert.equal(formatPrice({ currency: 'USD', value: '14.99' }, 'en-US'), '$14.99');
-  assert.match(formatPrice({ currency: 'PKR', value: '4200' }, 'en-US'), /^PKR\s4,200\.00$/);
+  // Newer ICU data drops the decimals for some currencies; both are correct.
+  assert.match(formatPrice({ currency: 'PKR', value: '4200' }, 'en-US'), /^PKR\s4,200(\.00)?$/);
   assert.equal(formatPrice(null), null);
   assert.equal(periodLabel('P1M'), 'a month');
   assert.equal(periodLabel('P1Y'), 'a year');
